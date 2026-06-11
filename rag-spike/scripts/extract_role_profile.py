@@ -12,8 +12,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_OFFLINE", "0")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "0")
 
 try:
     import pysqlite3

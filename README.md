@@ -47,7 +47,7 @@ tests/      独立后端轻量测试
 - 可访问 DeepSeek API 的网络环境。
 - `DEEPSEEK_API_KEY`。不要把真实 key 写入前端 `.env` 或提交到仓库。
 
-当前 Python 依赖包含 `sentence-transformers`、`chromadb` 等包，首次安装和首次加载模型可能较慢。你的服务器可以联网下载时，按下面命令直接安装即可。
+当前 Python 依赖包含 `sentence-transformers`、`chromadb` 等包，首次安装和首次加载模型可能较慢。你的服务器可以联网下载时，按下面命令直接安装即可。首次生成岗位雷达时会从 HuggingFace 下载 embedding 模型 `BAAI/bge-m3`；如果服务器访问 HuggingFace 慢或失败，需要配置镜像或提前准备模型缓存。
 
 本文默认部署方式：
 
@@ -98,6 +98,12 @@ export CAPABILITY_API_PORT=8770
 export CAPABILITY_ASSESSMENT_DB=/path/to/capability-assessment/data/capability-assessment.sqlite3
 export CAPABILITY_API_CORS_ORIGINS=http://SERVER_IP:5173,http://localhost:5173,http://127.0.0.1:5173
 export DEEPSEEK_API_KEY=your_deepseek_key
+```
+
+如果需要使用 HuggingFace 镜像，可以额外配置：
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
 ```
 
 Windows PowerShell：
@@ -218,6 +224,7 @@ source .venv/bin/activate
 export CAPABILITY_API_HOST=0.0.0.0
 export CAPABILITY_API_PORT=8770
 export CAPABILITY_API_CORS_ORIGINS=http://SERVER_IP:5173,http://localhost:5173,http://127.0.0.1:5173
+export HF_ENDPOINT=https://hf-mirror.com
 export DEEPSEEK_API_KEY=your_deepseek_key
 python -m server.main --host 0.0.0.0 --port 8770
 ```
