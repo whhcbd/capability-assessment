@@ -3,7 +3,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
+
+try:
+    import pysqlite3
+
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
 
 import chromadb
 from sentence_transformers import SentenceTransformer
