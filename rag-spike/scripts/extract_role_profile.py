@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import textwrap
 import time
 import urllib.error
@@ -13,6 +14,13 @@ from typing import Any
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
+try:
+    import pysqlite3
+
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
 
 import chromadb
 from sentence_transformers import SentenceTransformer

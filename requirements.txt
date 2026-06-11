@@ -1,6 +1,7 @@
 # Capability assessment RAG spike dependencies.
 # Static demo files under demo/ do not require Python packages.
 chromadb==1.5.9
+pysqlite3-binary>=0.5.4,<1.0.0
 sentence-transformers==5.5.1
 pypdf>=5.0.0,<7.0.0
 fastapi>=0.115.0,<1.0.0
