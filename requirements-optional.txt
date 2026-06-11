@@ -1,0 +1,4 @@
+# Optional enhancement for .docx parsing.
+# The Ability API also has a standard-library .docx fallback, so this file is not
+# required when lxml wheels are unavailable in the local package index.
+python-docx>=1.1.2,<2.0.0
