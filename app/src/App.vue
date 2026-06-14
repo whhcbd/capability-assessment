@@ -21,8 +21,6 @@ const {
   questionnaireModeLabel,
   overallScore,
   capabilityRows,
-  topStrengths,
-  topGaps,
   debugJson,
   sourceLabel,
   setView,
@@ -103,8 +101,6 @@ const {
       :questionnaire-mode-label="questionnaireModeLabel"
       :questionnaire-total="questionnaireTotal"
       :rows="capabilityRows"
-      :strengths="topStrengths"
-      :gaps="topGaps"
       :debug-json="debugJson"
       :source-label="sourceLabel"
       @start-quiz="beginQuestionnaire"

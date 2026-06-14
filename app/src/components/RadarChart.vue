@@ -35,17 +35,36 @@ function scoreFor(value: number | undefined): number {
   return Math.max(0, Math.min(100, Math.round(Number(value ?? 0))));
 }
 
+const activeDisplayMode = computed<RadarDisplayMode>(() => props.displayMode ?? "both");
+
 const gridPolygons = computed(() =>
   steps.map((step) => capabilities.map((_, index) => pointFor(index, radius * step).join(",")).join(" ")),
 );
 
 const axes = computed(() =>
   capabilities.map((capability, index) => {
-    const [labelX, labelY] = pointFor(index, radius + 25);
+    const [labelX, labelY] = pointFor(index, radius + 32);
     const [axisX, axisY] = pointFor(index, radius);
+    const userValue = props.profile ? scoreFor(props.profile[capability.key]?.score) : null;
+    const roleValue = props.requirements ? scoreFor(props.requirements[capability.key]?.required_level) : null;
+    let scoreLabel = "";
+
+    if (activeDisplayMode.value === "user" && userValue !== null) {
+      scoreLabel = String(userValue);
+    } else if (activeDisplayMode.value === "role" && roleValue !== null) {
+      scoreLabel = String(roleValue);
+    } else if (userValue !== null && roleValue !== null) {
+      scoreLabel = `${userValue}/${roleValue}`;
+    } else if (userValue !== null) {
+      scoreLabel = String(userValue);
+    } else if (roleValue !== null) {
+      scoreLabel = String(roleValue);
+    }
+
     return {
       key: capability.key,
       label: capability.short,
+      scoreLabel,
       labelX,
       labelY,
       axisX,
@@ -55,32 +74,13 @@ const axes = computed(() =>
 );
 
 const userPolygon = computed(() => {
-  if (!props.profile || props.displayMode === "role") return "";
+  if (!props.profile || activeDisplayMode.value === "role") return "";
   return polygonFor(capabilities.map(({ key }) => props.profile?.[key]?.score ?? 0));
 });
 
 const rolePolygon = computed(() => {
-  if (!props.requirements || props.displayMode === "user") return "";
+  if (!props.requirements || activeDisplayMode.value === "user") return "";
   return polygonFor(capabilities.map(({ key }) => props.requirements?.[key]?.required_level ?? 0));
-});
-
-const userScores = computed(() => {
-  if (!props.profile || props.displayMode === "role") return [];
-  return capabilities.map(({ key }, index) => {
-    const value = scoreFor(props.profile?.[key]?.score);
-    const [x, y] = pointFor(index, Math.max(34, (value / 100) * radius + 16));
-    return { key, value, x, y };
-  });
-});
-
-const roleScores = computed(() => {
-  if (!props.requirements || props.displayMode === "user") return [];
-  const inwardOffset = props.profile && props.displayMode !== "role" ? -10 : 16;
-  return capabilities.map(({ key }, index) => {
-    const value = scoreFor(props.requirements?.[key]?.required_level);
-    const [x, y] = pointFor(index, Math.max(30, (value / 100) * radius + inwardOffset));
-    return { key, value, x, y };
-  });
 });
 </script>
 
@@ -91,21 +91,10 @@ const roleScores = computed(() => {
       <line class="radar-axis" :x1="center" :y1="center" :x2="axis.axisX" :y2="axis.axisY" />
       <text class="radar-label" :x="axis.labelX" :y="axis.labelY" text-anchor="middle">
         {{ axis.label }}
+        <tspan v-if="axis.scoreLabel" class="radar-label-score" dx="4">{{ axis.scoreLabel }}</tspan>
       </text>
     </g>
     <polygon v-if="rolePolygon" class="radar-role" :points="rolePolygon" />
     <polygon v-if="userPolygon" class="radar-user" :points="userPolygon" />
-    <g v-for="score in roleScores" :key="`role-${score.key}`">
-      <circle class="radar-score-dot radar-score-dot-role" :cx="score.x" :cy="score.y - 4" r="10" />
-      <text class="radar-score radar-score-role" :x="score.x" :y="score.y" text-anchor="middle">
-        {{ score.value }}
-      </text>
-    </g>
-    <g v-for="score in userScores" :key="`user-${score.key}`">
-      <circle class="radar-score-dot radar-score-dot-user" :cx="score.x" :cy="score.y - 4" r="10" />
-      <text class="radar-score radar-score-user" :x="score.x" :y="score.y" text-anchor="middle">
-        {{ score.value }}
-      </text>
-    </g>
   </svg>
 </template>

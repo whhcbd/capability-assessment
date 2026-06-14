@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import RadarChart from "../components/RadarChart.vue";
-import type { CapabilityProfile, CapabilityReportRow, RoleCapabilityProfile } from "../types/profile";
+import type {
+  CapabilityProfile,
+  CapabilityReportRow,
+  QuestionnaireMode,
+  RoleCapabilityProfile,
+} from "../types/profile";
 
 defineProps<{
   targetRole: string;
@@ -12,20 +17,14 @@ defineProps<{
   questionnaireModeLabel: string;
   questionnaireTotal: number;
   rows: CapabilityReportRow[];
-  strengths: CapabilityReportRow[];
-  gaps: CapabilityReportRow[];
   debugJson: string;
   sourceLabel: (source: string) => string;
-}>();
-
-defineEmits<{
-  startQuiz: [];
-  restart: [];
 }>();
 
 type RadarMode = "both" | "user" | "role";
 
 const radarMode = ref<RadarMode>("both");
+const isModeDialogOpen = ref(false);
 
 const radarModes: Array<{ value: RadarMode; label: string }> = [
   { value: "both", label: "叠加" },
@@ -58,7 +57,7 @@ function personalAssessment(item: CapabilityReportRow, sourceLabel: (source: str
 
 function improvementAdvice(item: CapabilityReportRow): string {
   if (item.gap > 0) {
-    return `优先补齐 ${item.gap} 分差距：选择一个近期经历，用 STAR 结构补充目标、个人动作、量化结果和复盘；如果简历缺证据，本周补一个小练习或案例分析。`;
+    return `优先缩小 ${item.gap} 分差距：选择一个近期经历，用 STAR 结构补充目标、个人动作、量化结果和复盘；如果简历缺证据，本周补一个小练习或案例分析。`;
   }
   return `当前已接近或超过岗位要求：保留一段最强证明材料，并准备面试追问中的数据、反馈和个人贡献细节。`;
 }
@@ -79,6 +78,16 @@ function actionItems(rows: CapabilityReportRow[]) {
           : `今天整理一条“${item.label}”优势案例，准备 60 秒版本和 2 分钟追问版本。`,
     }));
 }
+
+const emit = defineEmits<{
+  startQuiz: [mode: QuestionnaireMode];
+  restart: [];
+}>();
+
+function chooseQuestionnaireMode(mode: QuestionnaireMode) {
+  isModeDialogOpen.value = false;
+  emit("startQuiz", mode);
+}
 </script>
 
 <template>
@@ -91,7 +100,7 @@ function actionItems(rows: CapabilityReportRow[]) {
           这里汇总你的理想岗位能力要求和个人能力测试结果。个人能力雷达需要完成问卷后才会生成。
         </p>
       </div>
-      <button class="secondary" type="button" @click="$emit('restart')">重新填写信息</button>
+      <button class="secondary" type="button" @click="emit('restart')">重新填写信息</button>
     </div>
 
     <section class="profile-summary">
@@ -113,16 +122,21 @@ function actionItems(rows: CapabilityReportRow[]) {
             <template v-else>当前仅显示理想岗位要求，完成问卷后可叠加个人能力。</template>
           </p>
         </div>
-        <div class="mode-toggle" aria-label="雷达显示模式">
-          <button
-            v-for="mode in radarModes"
-            :key="mode.value"
-            type="button"
-            :disabled="mode.value === 'user' && !capabilityProfile"
-            :aria-pressed="radarMode === mode.value"
-            @click="radarMode = mode.value"
-          >
-            {{ mode.label }}
+        <div class="profile-actions">
+          <div class="mode-toggle" aria-label="雷达显示模式">
+            <button
+              v-for="mode in radarModes"
+              :key="mode.value"
+              type="button"
+              :disabled="mode.value === 'user' && !capabilityProfile"
+              :aria-pressed="radarMode === mode.value"
+              @click="radarMode = mode.value"
+            >
+              {{ mode.label }}
+            </button>
+          </div>
+          <button class="secondary compact" type="button" @click="isModeDialogOpen = true">
+            {{ capabilityProfile ? "重新作答问卷" : "去填写问卷" }}
           </button>
         </div>
       </div>
@@ -141,28 +155,24 @@ function actionItems(rows: CapabilityReportRow[]) {
       <div v-if="!capabilityProfile" class="empty-state inline-empty">
         <strong>个人雷达还没有测试，暂时无法生成。</strong>
         <p>完成快速或详细问卷后，系统会结合简历证据生成个人能力画像。</p>
-        <button class="primary" type="button" @click="$emit('startQuiz')">去填写问卷</button>
+        <button class="primary" type="button" @click="isModeDialogOpen = true">去填写问卷</button>
       </div>
     </section>
 
-    <template v-if="capabilityProfile">
-      <section class="summary-grid">
-        <div class="report-card">
-          <h2>相对优势</h2>
-          <div v-for="item in strengths" :key="item.key" class="insight-row">
-            <strong>{{ item.label }}</strong>
-            <span>当前 {{ item.score }} / 要求 {{ item.required || "未标注" }}</span>
-          </div>
-        </div>
-        <div class="report-card">
-          <h2>优先补齐</h2>
-          <div v-for="item in gaps" :key="item.key" class="insight-row">
-            <strong>{{ item.label }}</strong>
-            <span>{{ item.gap ? `差距 ${item.gap}` : "当前接近要求" }}</span>
-          </div>
+    <div v-if="isModeDialogOpen" class="modal-backdrop" role="presentation" @click.self="isModeDialogOpen = false">
+      <section class="mode-dialog" role="dialog" aria-modal="true" aria-labelledby="mode-dialog-title">
+        <h2 id="mode-dialog-title">选择问卷模式</h2>
+        <div class="mode-dialog-actions">
+          <button class="primary" type="button" @click="chooseQuestionnaireMode('quick')">快速模式 · 10 题</button>
+          <button class="secondary" type="button" @click="chooseQuestionnaireMode('detailed')">
+            详细模式 · 48 题
+          </button>
+          <button class="ghost-button" type="button" @click="isModeDialogOpen = false">取消</button>
         </div>
       </section>
+    </div>
 
+    <template v-if="capabilityProfile">
       <section class="report-card report-list capability-detail-board">
         <h2>能力明细</h2>
         <div v-for="item in rows" :key="item.key" class="capability-detail">

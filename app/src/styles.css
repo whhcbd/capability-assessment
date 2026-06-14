@@ -310,6 +310,11 @@ textarea:read-only {
   transform: translateY(-1px);
 }
 
+.secondary.compact {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
 .ghost-button {
   border-color: transparent;
   background: transparent;
@@ -647,6 +652,13 @@ textarea:read-only {
   margin-bottom: 12px;
 }
 
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .mode-toggle {
   display: inline-flex;
   gap: 4px;
@@ -762,6 +774,12 @@ textarea:read-only {
   font-weight: 800;
 }
 
+.radar-label-score {
+  fill: var(--accent-strong);
+  font-size: 10px;
+  font-weight: 900;
+}
+
 .radar-user {
   fill: rgba(12, 111, 99, 0.2);
   stroke: var(--accent);
@@ -772,26 +790,6 @@ textarea:read-only {
   fill: rgba(50, 75, 115, 0.16);
   stroke: var(--role);
   stroke-width: 2.2;
-}
-
-.radar-score-dot {
-  stroke: #ffffff;
-  stroke-width: 2;
-}
-
-.radar-score-dot-user {
-  fill: var(--accent);
-}
-
-.radar-score-dot-role {
-  fill: var(--role);
-}
-
-.radar-score {
-  fill: #ffffff;
-  font-size: 10px;
-  font-weight: 900;
-  dominant-baseline: middle;
 }
 
 .summary-grid {
@@ -944,6 +942,36 @@ textarea:read-only {
   line-height: 1.7;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(17, 25, 22, 0.42);
+  padding: 18px;
+}
+
+.mode-dialog {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 24px;
+  box-shadow: 0 26px 80px rgba(17, 25, 22, 0.22);
+  animation: page-enter 180ms ease both;
+}
+
+.mode-dialog h2 {
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+.mode-dialog-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .developer-details summary {
   cursor: pointer;
   color: var(--accent-strong);
@@ -994,6 +1022,10 @@ pre {
 
   .radar-toolbar {
     display: grid;
+  }
+
+  .profile-actions {
+    justify-content: flex-start;
   }
 
   .quiz-navigator {
@@ -1056,6 +1088,7 @@ pre {
   .action-row .secondary,
   .quiz-action-group .primary,
   .quiz-action-group .secondary,
+  .profile-actions .secondary,
   .quiz-actions .primary,
   .quiz-actions .secondary {
     width: 100%;
