@@ -3,10 +3,13 @@ import { computed } from "vue";
 import { capabilities } from "../data/capabilities";
 import type { CapabilityProfile, RoleRequirements } from "../types/profile";
 
+type RadarDisplayMode = "user" | "role" | "both";
+
 const props = defineProps<{
   title: string;
   profile?: CapabilityProfile | null;
   requirements?: RoleRequirements | null;
+  displayMode?: RadarDisplayMode;
 }>();
 
 const size = 360;
@@ -26,6 +29,10 @@ function polygonFor(values: number[]): string {
       return pointFor(index, (safeValue / 100) * radius).join(",");
     })
     .join(" ");
+}
+
+function scoreFor(value: number | undefined): number {
+  return Math.max(0, Math.min(100, Math.round(Number(value ?? 0))));
 }
 
 const gridPolygons = computed(() =>
@@ -48,13 +55,32 @@ const axes = computed(() =>
 );
 
 const userPolygon = computed(() => {
-  if (!props.profile) return "";
+  if (!props.profile || props.displayMode === "role") return "";
   return polygonFor(capabilities.map(({ key }) => props.profile?.[key]?.score ?? 0));
 });
 
 const rolePolygon = computed(() => {
-  if (!props.requirements) return "";
+  if (!props.requirements || props.displayMode === "user") return "";
   return polygonFor(capabilities.map(({ key }) => props.requirements?.[key]?.required_level ?? 0));
+});
+
+const userScores = computed(() => {
+  if (!props.profile || props.displayMode === "role") return [];
+  return capabilities.map(({ key }, index) => {
+    const value = scoreFor(props.profile?.[key]?.score);
+    const [x, y] = pointFor(index, Math.max(34, (value / 100) * radius + 16));
+    return { key, value, x, y };
+  });
+});
+
+const roleScores = computed(() => {
+  if (!props.requirements || props.displayMode === "user") return [];
+  const inwardOffset = props.profile && props.displayMode !== "role" ? -10 : 16;
+  return capabilities.map(({ key }, index) => {
+    const value = scoreFor(props.requirements?.[key]?.required_level);
+    const [x, y] = pointFor(index, Math.max(30, (value / 100) * radius + inwardOffset));
+    return { key, value, x, y };
+  });
 });
 </script>
 
@@ -69,5 +95,17 @@ const rolePolygon = computed(() => {
     </g>
     <polygon v-if="rolePolygon" class="radar-role" :points="rolePolygon" />
     <polygon v-if="userPolygon" class="radar-user" :points="userPolygon" />
+    <g v-for="score in roleScores" :key="`role-${score.key}`">
+      <circle class="radar-score-dot radar-score-dot-role" :cx="score.x" :cy="score.y - 4" r="10" />
+      <text class="radar-score radar-score-role" :x="score.x" :y="score.y" text-anchor="middle">
+        {{ score.value }}
+      </text>
+    </g>
+    <g v-for="score in userScores" :key="`user-${score.key}`">
+      <circle class="radar-score-dot radar-score-dot-user" :cx="score.x" :cy="score.y - 4" r="10" />
+      <text class="radar-score radar-score-user" :x="score.x" :y="score.y" text-anchor="middle">
+        {{ score.value }}
+      </text>
+    </g>
   </svg>
 </template>

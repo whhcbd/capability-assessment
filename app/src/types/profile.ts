@@ -132,6 +132,8 @@ export interface ApiMeta {
   };
 }
 
+export type QuestionnaireMode = "quick" | "detailed";
+
 export type FlowView = "start" | "intake" | "questionnairePrompt" | "quiz" | "analyzing" | "profile" | "error";
 
 export interface CapabilityReportRow extends CapabilityInfo {

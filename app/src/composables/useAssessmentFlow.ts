@@ -1,6 +1,6 @@
 import { computed, reactive } from "vue";
 import { capabilities, capabilityByKey } from "../data/capabilities";
-import { questionnaireItems } from "../data/questionnaire";
+import { questionnaireItems, quickQuestionnaireItems } from "../data/questionnaire";
 import { customRoleOptionId, findRoleOption } from "../data/roleOptions";
 import { fetchCapabilityEvidence, uploadResumeFile } from "../services/abilityApi";
 import { fetchRoleProfile } from "../services/ragApi";
@@ -16,6 +16,7 @@ import type {
   CapabilityProfile,
   CapabilityReportRow,
   FlowView,
+  QuestionnaireMode,
   QuestionnaireAnswerPayload,
   RoleCapabilityProfile,
 } from "../types/profile";
@@ -35,6 +36,7 @@ interface AssessmentState {
   error: string;
   isUploading: boolean;
   isAnalyzing: boolean;
+  questionnaireMode: QuestionnaireMode;
   questionnaire: Record<string, number | null>;
   capabilityProfile: CapabilityProfile | null;
   roleProfile: RoleCapabilityProfile | null;
@@ -60,6 +62,7 @@ function createInitialState(): AssessmentState {
     error: "",
     isUploading: false,
     isAnalyzing: false,
+    questionnaireMode: "detailed",
     questionnaire: createQuestionnaireState(),
     capabilityProfile: null,
     roleProfile: null,
@@ -79,19 +82,28 @@ function sourceLabel(source: string): string {
 
 export function useAssessmentFlow() {
   const state = reactive<AssessmentState>(createInitialState());
+  let pendingAdvanceTimer: number | null = null;
+
+  const activeQuestionnaireItems = computed(() =>
+    state.questionnaireMode === "quick" ? quickQuestionnaireItems : questionnaireItems,
+  );
 
   const completedQuestionnaireCount = computed(
-    () => Object.values(state.questionnaire).filter((value) => value !== null).length,
+    () => activeQuestionnaireItems.value.filter((item) => state.questionnaire[item.id] !== null).length,
   );
 
   const completionPercent = computed(() =>
-    Math.round((completedQuestionnaireCount.value / questionnaireItems.length) * 100),
+    Math.round((completedQuestionnaireCount.value / activeQuestionnaireItems.value.length) * 100),
   );
 
-  const currentItem = computed(() => questionnaireItems[state.currentQuestion]);
+  const currentItem = computed(() => activeQuestionnaireItems.value[state.currentQuestion] ?? activeQuestionnaireItems.value[0]);
   const currentCapability = computed(() => capabilityByKey(currentItem.value.capabilityKey));
   const currentAnswer = computed(() => state.questionnaire[currentItem.value.id]);
-  const quizPercent = computed(() => Math.round(((state.currentQuestion + 1) / questionnaireItems.length) * 100));
+  const quizPercent = computed(() =>
+    Math.round(((state.currentQuestion + 1) / activeQuestionnaireItems.value.length) * 100),
+  );
+  const questionnaireTotal = computed(() => activeQuestionnaireItems.value.length);
+  const questionnaireModeLabel = computed(() => (state.questionnaireMode === "quick" ? "快速模式" : "详细模式"));
 
   const capabilityProfile = computed(() => state.capabilityProfile ?? createEmptyCapabilityProfile());
 
@@ -167,16 +179,16 @@ export function useAssessmentFlow() {
   }
 
   function validateQuestionnaire(): string {
-    const missingIndex = questionnaireItems.findIndex((item) => state.questionnaire[item.id] === null);
+    const missingIndex = activeQuestionnaireItems.value.findIndex((item) => state.questionnaire[item.id] === null);
     if (missingIndex >= 0) {
       state.currentQuestion = missingIndex;
-      return `请先完成第 ${missingIndex + 1} 题。`;
+      return `还有 ${activeQuestionnaireItems.value.length - completedQuestionnaireCount.value} 题未完成，请先补完第 ${missingIndex + 1} 题。`;
     }
     return "";
   }
 
   function questionnairePayload(): QuestionnaireAnswerPayload[] {
-    return questionnaireItems.map((item) => ({
+    return activeQuestionnaireItems.value.map((item) => ({
       id: item.id,
       capability_key: item.capabilityKey,
       indicator: item.indicator,
@@ -227,7 +239,8 @@ export function useAssessmentFlow() {
     setView("questionnairePrompt");
   }
 
-  function beginQuestionnaire() {
+  function beginQuestionnaire(mode: QuestionnaireMode = "detailed") {
+    state.questionnaireMode = mode;
     state.currentQuestion = 0;
     setView("quiz");
   }
@@ -276,26 +289,48 @@ export function useAssessmentFlow() {
   }
 
   function selectAnswer(score: number) {
+    const selectedIndex = state.currentQuestion;
+    const selectedItemId = currentItem.value.id;
     state.questionnaire[currentItem.value.id] = score;
     state.error = "";
-    if (state.currentQuestion < questionnaireItems.length - 1) {
-      window.setTimeout(() => {
-        state.currentQuestion += 1;
+    if (pendingAdvanceTimer !== null) {
+      window.clearTimeout(pendingAdvanceTimer);
+      pendingAdvanceTimer = null;
+    }
+    if (selectedIndex < activeQuestionnaireItems.value.length - 1) {
+      pendingAdvanceTimer = window.setTimeout(() => {
+        pendingAdvanceTimer = null;
+        if (state.currentQuestion === selectedIndex && state.questionnaire[selectedItemId] !== null) {
+          state.currentQuestion = selectedIndex + 1;
+        }
       }, 160);
     }
   }
 
   function previousQuestion() {
+    if (pendingAdvanceTimer !== null) {
+      window.clearTimeout(pendingAdvanceTimer);
+      pendingAdvanceTimer = null;
+    }
     state.currentQuestion = Math.max(0, state.currentQuestion - 1);
     state.error = "";
   }
 
   function nextQuestion() {
-    if (state.questionnaire[currentItem.value.id] === null) {
-      setError("请选择一个答案后再继续。", "quiz");
-      return;
+    if (pendingAdvanceTimer !== null) {
+      window.clearTimeout(pendingAdvanceTimer);
+      pendingAdvanceTimer = null;
     }
-    state.currentQuestion = Math.min(questionnaireItems.length - 1, state.currentQuestion + 1);
+    state.currentQuestion = Math.min(activeQuestionnaireItems.value.length - 1, state.currentQuestion + 1);
+    state.error = "";
+  }
+
+  function goToQuestion(index: number) {
+    if (pendingAdvanceTimer !== null) {
+      window.clearTimeout(pendingAdvanceTimer);
+      pendingAdvanceTimer = null;
+    }
+    state.currentQuestion = Math.max(0, Math.min(activeQuestionnaireItems.value.length - 1, index));
     state.error = "";
   }
 
@@ -351,10 +386,13 @@ export function useAssessmentFlow() {
     state,
     completedQuestionnaireCount,
     completionPercent,
+    activeQuestionnaireItems,
     currentItem,
     currentCapability,
     currentAnswer,
     quizPercent,
+    questionnaireTotal,
+    questionnaireModeLabel,
     capabilityRows,
     topStrengths,
     topGaps,
@@ -370,6 +408,7 @@ export function useAssessmentFlow() {
     selectAnswer,
     previousQuestion,
     nextQuestion,
+    goToQuestion,
     submitAssessment,
     restart,
   };

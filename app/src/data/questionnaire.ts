@@ -275,3 +275,9 @@ export const questionnaireItems: QuestionnaireItem[] = questionnaireBlueprint
     id: `qa_${String(index + 1).padStart(2, "0")}`,
     ...item,
   }));
+
+const quickQuestionnaireIds = new Set(["qa_01", "qa_07", "qa_13", "qa_19", "qa_25", "qa_31", "qa_37", "qa_43", "qa_08", "qa_44"]);
+
+export const quickQuestionnaireItems: QuestionnaireItem[] = questionnaireItems.filter((item) =>
+  quickQuestionnaireIds.has(item.id),
+);

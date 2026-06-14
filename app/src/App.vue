@@ -12,10 +12,13 @@ const flow = useAssessmentFlow();
 const {
   state,
   completedQuestionnaireCount,
+  activeQuestionnaireItems,
   currentItem,
   currentCapability,
   currentAnswer,
   quizPercent,
+  questionnaireTotal,
+  questionnaireModeLabel,
   overallScore,
   capabilityRows,
   topStrengths,
@@ -31,6 +34,7 @@ const {
   selectAnswer,
   previousQuestion,
   nextQuestion,
+  goToQuestion,
   submitAssessment,
   restart,
 } = flow;
@@ -70,14 +74,20 @@ const {
     <QuestionnaireView
       v-else-if="state.view === 'quiz'"
       :item="currentItem"
+      :items="activeQuestionnaireItems"
       :capability="currentCapability"
       :current-index="state.currentQuestion"
       :answer="currentAnswer"
+      :answers="state.questionnaire"
       :percent="quizPercent"
+      :completed-count="completedQuestionnaireCount"
+      :total-count="questionnaireTotal"
+      :mode-label="questionnaireModeLabel"
       :error="state.error"
       @select="selectAnswer"
       @previous="previousQuestion"
       @next="nextQuestion"
+      @go-to-question="goToQuestion"
       @submit="submitAssessment"
     />
 
@@ -90,6 +100,8 @@ const {
       :overall-score="overallScore"
       :capability-profile="state.capabilityProfile"
       :role-profile="state.roleProfile"
+      :questionnaire-mode-label="questionnaireModeLabel"
+      :questionnaire-total="questionnaireTotal"
       :rows="capabilityRows"
       :strengths="topStrengths"
       :gaps="topGaps"
@@ -111,14 +123,14 @@ const {
         <button
           class="secondary"
           type="button"
-          @click="setView(completedQuestionnaireCount === 48 ? 'quiz' : 'questionnairePrompt')"
+          @click="setView(completedQuestionnaireCount === questionnaireTotal ? 'quiz' : 'questionnairePrompt')"
         >
-          {{ completedQuestionnaireCount === 48 ? "返回问卷" : "返回上一步" }}
+          {{ completedQuestionnaireCount === questionnaireTotal ? "返回问卷" : "返回上一步" }}
         </button>
         <button
           class="primary"
           type="button"
-          @click="completedQuestionnaireCount === 48 ? submitAssessment() : goToProfileWithoutQuiz()"
+          @click="completedQuestionnaireCount === questionnaireTotal ? submitAssessment() : goToProfileWithoutQuiz()"
         >
           重试生成
         </button>
