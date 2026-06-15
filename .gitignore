@@ -9,7 +9,6 @@ data/*.sqlite
 *.db
 
 rag-spike/.env
-rag-spike/private-data/
 rag-spike/index/chroma/
 rag-spike/outputs/*.json
 !rag-spike/outputs/.gitkeep
