@@ -66,12 +66,8 @@ function actionItems(rows: CapabilityReportRow[]) {
   return [...rows]
     .sort((a, b) => b.gap - a.gap || a.confidence - b.confidence)
     .slice(0, 5)
-    .map((item, index) => ({
+    .map((item) => ({
       id: item.key,
-      priority: index + 1,
-      capability: item.label,
-      level: gapLabel(item),
-      scene: item.requirement_summary,
       action:
         item.gap > 0
           ? `今天先写出一个能证明“${item.label}”的经历草稿，补齐背景、个人动作、结果指标和复盘。`
@@ -175,27 +171,22 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
     <template v-if="capabilityProfile">
       <section class="report-card report-list capability-detail-board">
         <h2>能力明细</h2>
-        <div v-for="item in rows" :key="item.key" class="capability-detail">
-          <div class="capability-detail-head">
-            <div>
+        <div class="capability-detail-table">
+          <div class="capability-detail-row capability-detail-header">
+            <span>能力</span>
+            <span>岗位应用场景</span>
+            <span>个人能力评估</span>
+            <span>针对性改进建议</span>
+          </div>
+          <div v-for="item in rows" :key="item.key" class="capability-detail-row">
+            <div class="capability-name-cell">
               <strong>{{ item.label }}</strong>
               <small>我 {{ item.score }} · 职业 {{ item.required }} · {{ gapLabel(item) }}</small>
+              <span>可信度 {{ Math.round(item.confidence * 100) }}%</span>
             </div>
-            <span>可信度 {{ Math.round(item.confidence * 100) }}%</span>
-          </div>
-          <div class="capability-blocks">
-            <article>
-              <h3>岗位应用场景</h3>
-              <p>{{ roleApplication(item, targetRole) }}</p>
-            </article>
-            <article>
-              <h3>个人能力评估</h3>
-              <p>{{ personalAssessment(item, sourceLabel) }}</p>
-            </article>
-            <article>
-              <h3>针对性改进建议</h3>
-              <p>{{ improvementAdvice(item) }}</p>
-            </article>
+            <p>{{ roleApplication(item, targetRole) }}</p>
+            <p>{{ personalAssessment(item, sourceLabel) }}</p>
+            <p>{{ improvementAdvice(item) }}</p>
           </div>
         </div>
       </section>
@@ -204,12 +195,7 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
         <h2>可执行行动清单</h2>
         <div class="action-list">
           <article v-for="item in actionItems(rows)" :key="item.id" class="action-item">
-            <span>优先级 {{ item.priority }}</span>
-            <div>
-              <strong>{{ item.capability }} · {{ item.level }}</strong>
-              <p>岗位场景：{{ item.scene }}</p>
-              <p>今天开始：{{ item.action }}</p>
-            </div>
+            <p>今天开始：{{ item.action }}</p>
           </article>
         </div>
       </section>

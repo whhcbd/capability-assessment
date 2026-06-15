@@ -12,9 +12,10 @@ const props = defineProps<{
   displayMode?: RadarDisplayMode;
 }>();
 
-const size = 360;
+const size = 460;
 const center = size / 2;
-const radius = 124;
+const radius = 140;
+const labelRadius = 180;
 const steps = [0.25, 0.5, 0.75, 1];
 
 function pointFor(index: number, valueRadius: number): [number, number] {
@@ -43,7 +44,7 @@ const gridPolygons = computed(() =>
 
 const axes = computed(() =>
   capabilities.map((capability, index) => {
-    const [labelX, labelY] = pointFor(index, radius + 32);
+    const [labelX, labelY] = pointFor(index, labelRadius);
     const [axisX, axisY] = pointFor(index, radius);
     const userValue = props.profile ? scoreFor(props.profile[capability.key]?.score) : null;
     const roleValue = props.requirements ? scoreFor(props.requirements[capability.key]?.required_level) : null;
@@ -63,7 +64,7 @@ const axes = computed(() =>
 
     return {
       key: capability.key,
-      label: capability.short,
+      label: capability.label,
       scoreLabel,
       labelX,
       labelY,

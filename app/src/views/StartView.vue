@@ -45,7 +45,7 @@ defineEmits<{
       </div>
       <div class="preview-list">
         <div>
-          <span>逻辑分析</span>
+          <span>逻辑分析能力</span>
           <strong>82 / 88</strong>
         </div>
         <div>
@@ -53,7 +53,7 @@ defineEmits<{
           <strong>76 / 86</strong>
         </div>
         <div>
-          <span>沟通表达</span>
+          <span>沟通表达能力</span>
           <strong>74 / 78</strong>
         </div>
       </div>
