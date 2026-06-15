@@ -385,7 +385,6 @@ h3 {
 .plain-section,
 .report-card,
 .radar-panel,
-.advice-section,
 .developer-details,
 .prompt-panel,
 .profile-summary,
@@ -902,7 +901,7 @@ textarea:read-only {
 }
 
 .radar-workspace svg {
-  width: min(560px, 100%);
+  width: min(640px, 100%);
 }
 
 .radar-legend {
@@ -970,12 +969,20 @@ textarea:read-only {
   fill: #111111;
   font-size: 11px;
   font-weight: 600;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-linejoin: round;
+  stroke-width: 5px;
 }
 
 .radar-label-score {
   fill: var(--body);
   font-size: 10px;
   font-weight: 600;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-linejoin: round;
+  stroke-width: 4px;
 }
 
 .radar-user {
@@ -997,7 +1004,6 @@ textarea:read-only {
 }
 
 .report-list,
-.advice-section,
 .developer-details {
   margin-top: 22px;
 }
@@ -1015,8 +1021,7 @@ textarea:read-only {
 }
 
 .insight-row span,
-.capability-row p,
-.advice-section li {
+.capability-row p {
   color: var(--muted);
   line-height: 1.7;
 }
@@ -1109,30 +1114,6 @@ textarea:read-only {
 .capability-detail-row p {
   color: var(--muted);
   font-size: 14px;
-  line-height: 1.7;
-}
-
-.advice-section ul {
-  margin: 12px 0 0;
-  padding-left: 20px;
-}
-
-.action-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.action-item {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  padding: 14px 16px;
-}
-
-.action-item p {
-  margin: 0;
-  color: var(--body);
   line-height: 1.7;
 }
 
@@ -1256,7 +1237,6 @@ pre {
   .radar-panel,
   .prompt-panel,
   .profile-summary,
-  .advice-section,
   .developer-details {
     padding: 18px;
   }

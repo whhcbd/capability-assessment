@@ -18,6 +18,16 @@ const radius = 140;
 const labelRadius = 180;
 const steps = [0.25, 0.5, 0.75, 1];
 
+function labelLines(label: string): string[] {
+  const preferredBreaks: Record<string, string[]> = {
+    协作与领导力: ["协作与", "领导力"],
+    自我认知与职业动机: ["自我认知与", "职业动机"],
+    数据与数字化思维: ["数据与", "数字化思维"],
+    商业与行业理解: ["商业与", "行业理解"],
+  };
+  return preferredBreaks[label] ?? [label];
+}
+
 function pointFor(index: number, valueRadius: number): [number, number] {
   const angle = (Math.PI * 2 * index) / capabilities.length - Math.PI / 2;
   return [center + Math.cos(angle) * valueRadius, center + Math.sin(angle) * valueRadius];
@@ -65,9 +75,10 @@ const axes = computed(() =>
     return {
       key: capability.key,
       label: capability.label,
+      labelLines: labelLines(capability.label),
       scoreLabel,
       labelX,
-      labelY,
+      labelY: labelY - (labelLines(capability.label).length > 1 ? 8 : 0),
       axisX,
       axisY,
     };
@@ -90,12 +101,18 @@ const rolePolygon = computed(() => {
     <polygon v-for="points in gridPolygons" :key="points" class="radar-grid" :points="points" />
     <g v-for="axis in axes" :key="axis.key">
       <line class="radar-axis" :x1="center" :y1="center" :x2="axis.axisX" :y2="axis.axisY" />
-      <text class="radar-label" :x="axis.labelX" :y="axis.labelY" text-anchor="middle">
-        {{ axis.label }}
-        <tspan v-if="axis.scoreLabel" class="radar-label-score" dx="4">{{ axis.scoreLabel }}</tspan>
-      </text>
     </g>
     <polygon v-if="rolePolygon" class="radar-role" :points="rolePolygon" />
     <polygon v-if="userPolygon" class="radar-user" :points="userPolygon" />
+    <g v-for="axis in axes" :key="`${axis.key}-label`">
+      <text class="radar-label" :x="axis.labelX" :y="axis.labelY" text-anchor="middle">
+        <tspan v-for="(line, index) in axis.labelLines" :key="line" :x="axis.labelX" :dy="index === 0 ? 0 : 13">
+          {{ line }}
+        </tspan>
+        <tspan v-if="axis.scoreLabel" class="radar-label-score" :x="axis.labelX" dy="13">
+          {{ axis.scoreLabel }}
+        </tspan>
+      </text>
+    </g>
   </svg>
 </template>
