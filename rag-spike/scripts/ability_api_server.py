@@ -148,6 +148,7 @@ def build_capability_prompt(
     resume_text: str,
     target_role: str,
     questionnaire_answers: list[dict[str, Any]],
+    role_requirements: dict[str, Any] | None = None,
 ) -> str:
     capability_lines = "\n".join(
         f"- {item['key']}: {item['label']}。{item['description']}" for item in CAPABILITIES
@@ -159,14 +160,21 @@ def build_capability_prompt(
         f"  题目：{item.get('text', '')}"
         for index, item in enumerate(questionnaire_answers)
     )
+    role_requirement_lines = "\n".join(
+        f"- {key}: required_level={value.get('required_level', 'unknown')}, "
+        f"weight={value.get('weight', 'unknown')}, "
+        f"summary={value.get('requirement_summary', '')}"
+        for key, value in (role_requirements or {}).items()
+        if key in CAPABILITY_KEYS and isinstance(value, dict)
+    )
 
     return textwrap.dedent(
         f"""
         你是学生职业能力画像评分器。请根据简历文本、心仪职业和 48 题行为锚定自评问卷，
-        输出可合并进 capability_profile 的局部能力证据 JSON。
+        输出可合并进 capability_profile 的局部能力证据 JSON，并为每个能力给出可马上执行的改进建议。
 
         只允许输出 JSON，不要输出 Markdown，不要解释。
-        不允许输出岗位推荐列表、录用判断、医学诊断、心理测评结论、训练计划或简历正文改写。
+        不允许输出岗位推荐列表、录用判断、医学诊断、心理测评结论、长期训练计划或简历正文改写。
         如果证据不足，可以给较低 confidence；不要把证据不足直接写成能力差。
         自评问卷只能作为低可信度辅助证据，不能单独决定最终能力水平。
         简历文本和自评分数必须分开解释。
@@ -178,14 +186,20 @@ def build_capability_prompt(
         只能使用以下 capability_key：
         {capability_lines}
 
+        岗位能力要求（如提供，必须用于生成 improvement_advice）：
+        {role_requirement_lines or "未提供岗位能力要求，仅根据 target_role、简历和问卷生成建议。"}
+
         输出要求：
         - 顶层必须包含 evidence 数组。
         - evidence 数组对象的 source_type 只能是 resume_text 或 self_assessment。
         - 每个 evidence 对象必须包含 source_type、source_id、capability_evidence。
-        - capability_evidence 中每项必须包含 capability_key、score、confidence、evidence_summary。
+        - capability_evidence 中每项必须包含 capability_key、score、confidence、evidence_summary、improvement_advice。
         - score 范围 0-100。
         - confidence 范围 0.00-1.00。
         - evidence_summary 必须说明评分依据；证据不足时必须明确写出缺少什么行为证据。
+        - improvement_advice 必须是中文，必须针对 target_role、该 capability_key、简历证据和岗位能力要求。
+        - improvement_advice 必须落到今天或本周可以做的具体动作；不要写“加强学习”“提升能力”“多练习”这类空话。
+        - improvement_advice 不要超过 80 个中文字符，优先建议补充经历证据、量化材料、面试表达稿、小案例或具体工具练习。
         - resume_text 证据要基于简历里的项目、行为、结果、数据或职责。
         - self_assessment 证据要明确写成“自评倾向”，confidence 通常不高于 0.45。
         - 当自评高分但简历缺少对应行为证据时，要提示“需要补充行为证据”。
@@ -201,7 +215,8 @@ def build_capability_prompt(
                   "capability_key": "communication_expression",
                   "score": 72,
                   "confidence": 0.58,
-                  "evidence_summary": "简历显示用户能描述项目背景和个人行动，但结果指标证据不足。"
+                  "evidence_summary": "简历显示用户能描述项目背景和个人行动，但结果指标证据不足。",
+                  "improvement_advice": "今天选一个项目写 90 秒表达稿，补齐背景、个人动作、结果指标和复盘。"
                 }}
               ]
             }},
@@ -213,7 +228,8 @@ def build_capability_prompt(
                   "capability_key": "communication_expression",
                   "score": 78,
                   "confidence": 0.36,
-                  "evidence_summary": "问卷体现较高自评倾向，但仍需要简历或行为案例支持。"
+                  "evidence_summary": "问卷体现较高自评倾向，但仍需要简历或行为案例支持。",
+                  "improvement_advice": "本周补一个真实沟通案例，写清楚沟通对象、分歧点、你的表达和结果。"
                 }}
               ]
             }}
@@ -261,6 +277,7 @@ def validate_capability_evidence(payload: dict[str, Any]) -> list[str]:
             score = item.get("score")
             confidence = item.get("confidence")
             summary = item.get("evidence_summary")
+            advice = item.get("improvement_advice")
             if key not in CAPABILITY_KEYS:
                 errors.append(f"Unknown capability_key: {key}")
             if not isinstance(score, (int, float)) or not 0 <= float(score) <= 100:
@@ -269,6 +286,8 @@ def validate_capability_evidence(payload: dict[str, Any]) -> list[str]:
                 errors.append(f"Invalid confidence for {key}")
             if not isinstance(summary, str) or not summary.strip():
                 errors.append(f"Missing evidence_summary for {key}")
+            if not isinstance(advice, str) or not advice.strip():
+                errors.append(f"Missing improvement_advice for {key}")
     return errors
 
 
@@ -280,6 +299,7 @@ def score_capability_for_request(
     questionnaire_answers: list[dict[str, Any]],
     timeout: int,
     retries: int,
+    role_requirements: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     started_at = time.perf_counter()
     config = extract_role_profile.get_config(extract_role_profile.ENV_PATH)
@@ -288,6 +308,7 @@ def score_capability_for_request(
         resume_text=resume_text,
         target_role=target_role,
         questionnaire_answers=questionnaire_answers,
+        role_requirements=role_requirements,
     )
 
     last_error: Exception | None = None
@@ -386,6 +407,7 @@ class AbilityApiHandler(BaseHTTPRequestHandler):
             resume_text = str(payload.get("resume_text") or "").strip()
             target_role = str(payload.get("target_role") or "").strip()
             questionnaire_answers = payload.get("questionnaire_answers") or []
+            role_requirements = payload.get("role_requirements") or None
             timeout = int(payload.get("timeout") or 90)
             retries = int(payload.get("retries") or 1)
 
@@ -407,6 +429,7 @@ class AbilityApiHandler(BaseHTTPRequestHandler):
                 questionnaire_answers=questionnaire_answers,
                 timeout=timeout,
                 retries=retries,
+                role_requirements=role_requirements if isinstance(role_requirements, dict) else None,
             )
             self.send_json(result)
         except Exception as error:  # noqa: BLE001 - return structured local demo errors

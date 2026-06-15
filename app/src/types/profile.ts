@@ -38,6 +38,7 @@ export interface CapabilityEvidenceItem {
   score: number;
   confidence: number;
   evidence_summary: string;
+  improvement_advice?: string;
 }
 
 export interface CapabilityEvidenceGroup {
@@ -51,6 +52,7 @@ export interface CapabilityProfileEntry {
   confidence: number;
   evidence_sources: string[];
   evidence_summary: string;
+  improvement_advice?: string;
 }
 
 export type CapabilityProfile = Record<CapabilityKey, CapabilityProfileEntry>;
@@ -141,6 +143,7 @@ export interface CapabilityReportRow extends CapabilityInfo {
   confidence: number;
   evidence_sources: string[];
   evidence_summary: string;
+  improvement_advice?: string;
   required: number;
   gap: number;
   surplus: number;

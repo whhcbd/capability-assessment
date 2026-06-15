@@ -65,25 +65,6 @@ const roleScenarioText: Record<string, (targetRole: string, summary: string) => 
     `在 ${targetRole} 中，这项能力体现在理解用户、行业、公司业务和岗位价值。岗位要求里提到：${summary} 建议准备一个你如何理解目标公司、产品或行业变化的例子。`,
 };
 
-const improvementText: Record<string, (item: CapabilityReportRow) => string> = {
-  communication_expression: () =>
-    "今天做：选一个项目经历，写成 90 秒表达稿，只保留“背景、目标、我的动作、结果”四句；读一遍录音，删掉别人听不懂的缩写和空话。",
-  logical_analysis: () =>
-    "今天做：拿一个做过的项目或课程作业，画一张问题树：最上面写目标，下面拆 3 个影响因素，每个因素写 1 条证据或数据。",
-  learning_adaptability: () =>
-    "今天做：选一个目标岗位常见工具或概念，花 30 分钟看入门资料，产出一页笔记：它解决什么问题、你可以在哪个经历里用它。",
-  execution_ownership: () =>
-    "今天做：把一个经历补成任务清单，写清楚你负责哪 3 件事、每件事的截止时间、最终交付物和遇到阻碍时你怎么推进。",
-  collaboration_leadership: () =>
-    "今天做：整理一次合作经历，列出参与者、分歧点、你做过的协调动作、最后如何达成一致；不要只写“团队合作良好”。",
-  self_awareness_motivation: () =>
-    "今天做：写 5 行职业动机：我为什么想做这个岗位、我已有哪段经历能支撑、我还缺什么、接下来一周准备补什么。",
-  data_digital_literacy: () =>
-    "今天做：给一个经历补 3 个数字，例如用户数、样本量、效率变化、转化率或完成时长；没有现成数据时，用表格把过程量化出来。",
-  business_industry_understanding: () =>
-    "今天做：打开一家目标公司或产品页面，写下用户是谁、它靠什么创造价值、这个岗位具体帮业务解决什么问题，各写一句话。",
-};
-
 function roleApplication(item: CapabilityReportRow, targetRole: string): string {
   return roleScenarioText[item.key]?.(targetRole, item.requirement_summary) ?? item.requirement_summary;
 }
@@ -94,9 +75,7 @@ function personalAssessment(item: CapabilityReportRow, sourceLabel: (source: str
 }
 
 function improvementAdvice(item: CapabilityReportRow): string {
-  const action = improvementText[item.key]?.(item) ?? "今天做：选一个最近经历，补齐背景、你的动作、结果和复盘。";
-  if (item.gap > 0) return `${action} 这项和岗位要求还有 ${item.gap} 分差距，先补能写进简历或面试的证据。`;
-  return `${action} 当前接近岗位要求，重点是把已有优势整理成能讲清楚、能被追问的材料。`;
+  return item.improvement_advice || "暂无 LLM 改进建议。请重新生成能力评估。";
 }
 
 const emit = defineEmits<{

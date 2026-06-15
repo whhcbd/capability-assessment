@@ -41,6 +41,7 @@ def build_capability_evidence(
     questionnaire_answers: list[dict[str, Any]],
     timeout: int,
     retries: int,
+    role_requirements: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return score_capability_for_request(
         user_id=user_id,
@@ -49,4 +50,5 @@ def build_capability_evidence(
         questionnaire_answers=questionnaire_answers,
         timeout=timeout,
         retries=retries,
+        role_requirements=role_requirements,
     )

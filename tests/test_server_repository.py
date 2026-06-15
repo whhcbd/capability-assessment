@@ -59,6 +59,7 @@ def test_merge_capability_profile_keeps_all_capability_keys() -> None:
                         "score": 88,
                         "confidence": 0.7,
                         "evidence_summary": "Resume shows analytical work.",
+                        "improvement_advice": "Draft an analysis case with metrics today.",
                     }
                 ],
             },
@@ -71,6 +72,7 @@ def test_merge_capability_profile_keeps_all_capability_keys() -> None:
                         "score": 80,
                         "confidence": 0.4,
                         "evidence_summary": "Self assessment is consistent.",
+                        "improvement_advice": "Add one questionnaire-backed example this week.",
                     }
                 ],
             },
@@ -80,4 +82,6 @@ def test_merge_capability_profile_keeps_all_capability_keys() -> None:
     assert len(profile) == 8
     assert profile["logical_analysis"]["score"] > 80
     assert "resume_text" in profile["logical_analysis"]["evidence_sources"]
+    assert "Draft an analysis case" in profile["logical_analysis"]["improvement_advice"]
     assert profile["communication_expression"]["confidence"] == 0.16
+    assert profile["communication_expression"]["improvement_advice"]

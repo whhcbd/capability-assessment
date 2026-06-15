@@ -52,6 +52,9 @@ class AssessmentService:
             raise ValueError("Assessment session not found for this student.")
 
         answers = [answer.model_dump() for answer in request.questionnaire_answers]
+        role_requirements = {}
+        if isinstance(session.get("role_profile"), dict):
+            role_requirements = session["role_profile"].get("requirements") or {}
         result = build_capability_evidence(
             user_id=student_id,
             resume_text=session["resume_text"],
@@ -59,6 +62,7 @@ class AssessmentService:
             questionnaire_answers=answers,
             timeout=request.timeout,
             retries=request.retries,
+            role_requirements=role_requirements if isinstance(role_requirements, dict) else {},
         )
         evidence = result["evidence"]
         capability_profile = merge_capability_profile(evidence)

@@ -55,6 +55,7 @@ def merge_capability_profile(evidence_groups: list[dict[str, Any]]) -> dict[str,
                 "confidence": 0.16,
                 "evidence_sources": [],
                 "evidence_summary": "Current inputs lack enough behavioral evidence.",
+                "improvement_advice": "暂无 LLM 改进建议。请补充简历证据并重新生成能力评估。",
             }
             continue
 
@@ -77,5 +78,13 @@ def merge_capability_profile(evidence_groups: list[dict[str, Any]]) -> dict[str,
                 for item in items[:3]
                 if str(item.get("evidence_summary") or "").strip()
             ),
+            "improvement_advice": " ".join(
+                dict.fromkeys(
+                    str(item.get("improvement_advice") or "").strip()
+                    for item in items
+                    if str(item.get("improvement_advice") or "").strip()
+                )
+            )
+            or "暂无 LLM 改进建议。请重新生成能力评估。",
         }
     return profile

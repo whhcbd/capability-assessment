@@ -121,6 +121,7 @@ export function useAssessmentFlow() {
           confidence: Math.max(0, Math.min(1, Number(user.confidence ?? 0))),
           evidence_sources: user.evidence_sources ?? [],
           evidence_summary: user.evidence_summary || "暂无证据摘要。",
+          improvement_advice: user.improvement_advice || "暂无 LLM 改进建议。请重新生成能力评估。",
           required,
           gap: Math.max(0, required - score),
           surplus: Math.max(0, score - required),

@@ -24,12 +24,13 @@ function clampConfidence(value: unknown): number {
 export function createEmptyCapabilityProfile(summary = "尚未生成能力证据。"): CapabilityProfile {
   const profile = {} as CapabilityProfile;
   capabilities.forEach(({ key }) => {
-    profile[key] = {
-      score: 0,
-      confidence: 0,
-      evidence_sources: [],
-      evidence_summary: summary,
-    };
+      profile[key] = {
+        score: 0,
+        confidence: 0,
+        evidence_sources: [],
+        evidence_summary: summary,
+        improvement_advice: "暂无 LLM 改进建议。请完成问卷并重新生成能力评估。",
+      };
   });
   return profile;
 }
@@ -70,6 +71,7 @@ export function mergeCapabilityProfile(evidenceGroups: CapabilityEvidenceGroup[]
             confidence: 0.16,
             evidence_sources: [],
             evidence_summary: "当前输入中缺少可解释证据，需要补充简历行为案例。",
+            improvement_advice: "暂无 LLM 改进建议。请补充简历证据并重新生成能力评估。",
           },
         ];
       }
@@ -93,6 +95,9 @@ export function mergeCapabilityProfile(evidenceGroups: CapabilityEvidenceGroup[]
             .slice(0, 3)
             .map((item) => item.evidence_summary)
             .join(" "),
+          improvement_advice:
+            [...new Set(items.map((item) => item.improvement_advice).filter(Boolean))]
+              .join(" ") || "暂无 LLM 改进建议。请重新生成能力评估。",
         },
       ];
     }),

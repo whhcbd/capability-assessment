@@ -35,7 +35,8 @@
       "score": 78,
       "confidence": 0.72,
       "evidence_sources": ["resume_text", "dialogue_answer", "self_assessment"],
-      "evidence_summary": "用户有社团展示和项目沟通经历，回答结构较清晰。"
+      "evidence_summary": "用户有社团展示和项目沟通经历，回答结构较清晰。",
+      "improvement_advice": "今天选一个项目写 90 秒表达稿，补齐背景、个人动作、结果指标和复盘。"
     }
   }
 }
@@ -53,6 +54,7 @@
 | `confidence` | number | yes | 置信度，范围 `0.00-1.00`。 |
 | `evidence_sources` | string[] | yes | 证据来源。 |
 | `evidence_summary` | string | yes | 支撑该分数的简短证据说明。 |
+| `improvement_advice` | string | yes | LLM 生成的针对目标岗位、该能力和当前证据的具体改进建议，应落到今天或本周可执行动作。 |
 
 ## 4. 证据来源
 
@@ -129,7 +131,8 @@
       "capability_key": "communication_expression",
       "score": 76,
       "confidence": 0.68,
-      "evidence_summary": "用户能按背景、行动、结果描述项目经历。"
+      "evidence_summary": "用户能按背景、行动、结果描述项目经历。",
+      "improvement_advice": "今天补一段沟通案例，写清楚沟通对象、分歧点、你的表达方式和结果。"
     }
   ]
 }
@@ -141,6 +144,7 @@
 - `score` 必须在 `0-100` 之间。
 - `confidence` 必须在 `0.00-1.00` 之间。
 - `evidence_summary` 必须说明评分依据。
+- `improvement_advice` 必须由 LLM 根据目标岗位、当前能力、简历证据和问卷结果生成，建议要具体到可马上执行的动作。
 - 不允许在该输出中生成岗位推荐、匹配报告或训练建议。
 
 ## 7. 自评解释边界
