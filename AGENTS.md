@@ -152,6 +152,7 @@ python -m compileall server tests rag-spike\scripts
 - `confidence` 必须限制在 `0.00-1.00`。
 - RAG `source_refs` 对 Markdown 使用 `file.md#chunk_index`，对私有 PDF 知识库使用 `file.pdf#page_页码#chunk_序号`。
 - RAG 用于职业雷达和 AI 岗位问卷生成；个人雷达来自简历和问卷能力证据，不要描述为 RAG 生成。
+- 检索英文 SWEBOK PDF 时，先生成英文 retrieval query，再与中文岗位/JD 原文混合检索；英文 query 生成失败时回退中文原文。
 - AI 岗位问卷第一版只作为“产品经理实习生”示范能力，不承诺所有 JD 都稳定高质量。
 - 不要把 mock 输出描述为生产级真实 RAG。
 - 不要把 legacy `demo/` mock fallback 搬回当前主流程。

@@ -170,8 +170,14 @@ def generate_role_questionnaire_for_request(
     started_at = time.perf_counter()
     query = "\n\n".join(value for value in [role_name.strip(), jd_text.strip()] if value)
     config = extract_role_profile.get_config(extract_role_profile.ENV_PATH)
+    retrieval_query = extract_role_profile.build_bilingual_retrieval_query(
+        config=config,
+        role_name=role_name,
+        jd_text=jd_text,
+        timeout=timeout,
+    )
     chunks = extract_role_profile.retrieve_chunks(
-        query=query or role_name,
+        query=retrieval_query["query"] or query or role_name,
         model_name=extract_role_profile.DEFAULT_MODEL,
         index_dir=extract_role_profile.INDEX_DIR,
         top_k=top_k,
@@ -210,6 +216,7 @@ def generate_role_questionnaire_for_request(
         "questionnaire_items": normalized_questionnaire_items(payload),
         "source_refs": payload.get("source_refs") or [],
         "retrieved_chunks": chunks,
+        "retrieval_query": retrieval_query,
         "deepseek_model": config["model"],
         "validation_errors": validate_questionnaire_payload(payload, question_count),
         "elapsed_seconds": round(time.perf_counter() - started_at, 3),

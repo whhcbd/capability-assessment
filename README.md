@@ -6,7 +6,7 @@
 
 - 始终展示理想岗位能力雷达。
 - 问卷支持 10 题快速模式、48 题详细模式和 AI 岗位问卷 15 题示范模式。
-- AI 岗位问卷基于目标岗位/JD 和本地 SWEBOK 私有知识库生成。
+- AI 岗位问卷基于目标岗位/JD 和本地 SWEBOK 私有知识库生成，检索时会把中文岗位输入转成英文 retrieval query 后与中文原文混合检索。
 - 完成问卷后展示个人能力雷达、合并雷达对比和能力明细。
 - 能力明细包含能力、岗位应用场景、个人能力评估、针对性改进建议。
 - 针对性改进建议来自后端 LLM 输出，目标是给出可落地、马上能做的建议。
@@ -46,8 +46,8 @@ tests/      独立后端轻量测试
 
 当前 RAG 的明确使用范围是职业雷达和 AI 岗位问卷生成：
 
-- `POST /assessments/role-profile` 基于目标岗位/JD 生成岗位能力需求图。
-- `POST /questionnaires/role-generated` 基于目标岗位/JD 和本地知识库生成 15 题岗位化问卷。
+- `POST /assessments/role-profile` 基于目标岗位/JD 生成岗位能力需求图，检索英文 SWEBOK 时使用中文原文 + 英文 retrieval query 的混合查询。
+- `POST /questionnaires/role-generated` 基于目标岗位/JD 和本地知识库生成 15 题岗位化问卷，检索英文 SWEBOK 时同样使用双语混合查询。
 - `POST /assessments/capability-evidence` 基于已保存简历和问卷答案生成个人能力证据，个人雷达不是 RAG 检索结果。
 
 ## 服务器部署前确认
@@ -180,7 +180,7 @@ PDF 使用 `pypdf` 按页抽取文本并切块，metadata 会记录 `source_file
 POST /questionnaires/role-generated
 ```
 
-接口会根据目标岗位/JD 检索知识库，并调用 DeepSeek 生成 15 道与岗位相关的 1-5 分自评题。题目提交后仍走 `POST /assessments/capability-evidence` 评分。
+接口会先用 DeepSeek 把中文目标岗位/JD 压缩成英文 retrieval query，再与中文原文拼接后检索英文 SWEBOK 知识库，最后调用 DeepSeek 生成 15 道与岗位相关的 1-5 分自评题。题目提交后仍走 `POST /assessments/capability-evidence` 评分。
 
 ## 前端安装与启动
 

@@ -43,6 +43,7 @@ CAPABILITY_KEYS = [
     "business_industry_understanding",
 ]
 PROHIBITED_TERMS = ["岗位推荐", "匹配度报告", "训练建议", "课程推荐", "简历生成"]
+MAX_RETRIEVAL_QUERY_CHARS = 1200
 
 
 def build_chunk_ref(chunk: dict[str, Any]) -> str:
@@ -102,6 +103,106 @@ def get_config(env_path: Path) -> dict[str, str]:
         "api_key": api_key,
         "model": os.environ.get("DEEPSEEK_MODEL") or file_env.get("DEEPSEEK_MODEL") or "deepseek-chat",
         "base_url": (os.environ.get("DEEPSEEK_BASE_URL") or file_env.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").rstrip("/"),
+    }
+
+
+def build_retrieval_query_prompt(role_name: str, jd_text: str) -> str:
+    return textwrap.dedent(
+        f"""
+        You are preparing a retrieval query for an English software engineering knowledge base.
+        Convert the Chinese role name and JD into concise English search language for SWEBOK-style content.
+
+        Output JSON only. Do not explain.
+
+        Role name:
+        {role_name}
+
+        JD:
+        {jd_text or role_name}
+
+        Requirements:
+        - Keep the query in English.
+        - Focus on software engineering lifecycle, requirements, design, testing, maintenance, quality, project work, product work, data-informed decisions, stakeholder collaboration, risk, and process.
+        - Do not translate literally if a better software engineering term exists.
+        - Keep it under 160 words.
+
+        JSON shape:
+        {{
+          "retrieval_query": "product management intern, requirements analysis, software requirements specification, stakeholder communication, validation, testing, release risk, metrics-driven iteration"
+        }}
+        """
+    ).strip()
+
+
+def normalize_retrieval_query(value: Any) -> str:
+    if isinstance(value, list):
+        value = ", ".join(str(item).strip() for item in value if str(item).strip())
+    if not isinstance(value, str):
+        return ""
+    return " ".join(value.strip().split())[:MAX_RETRIEVAL_QUERY_CHARS]
+
+
+def generate_english_retrieval_query(
+    *,
+    config: dict[str, str],
+    role_name: str,
+    jd_text: str,
+    timeout: int,
+) -> str:
+    prompt = build_retrieval_query_prompt(role_name, jd_text)
+    content = call_deepseek(config, prompt, min(timeout, 30))
+    payload = extract_json_response(content)
+    query = (
+        payload.get("retrieval_query")
+        or payload.get("english_query")
+        or payload.get("query")
+        or payload.get("keywords")
+    )
+    return normalize_retrieval_query(query)
+
+
+def build_bilingual_retrieval_query(
+    *,
+    config: dict[str, str] | None,
+    role_name: str,
+    jd_text: str,
+    timeout: int,
+) -> dict[str, Any]:
+    original_query = "\n\n".join(value for value in [role_name.strip(), jd_text.strip()] if value).strip()
+    if not original_query:
+        original_query = role_name.strip()
+
+    english_query = ""
+    status = "fallback_original_query"
+    error = ""
+    if config:
+        try:
+            english_query = generate_english_retrieval_query(
+                config=config,
+                role_name=role_name,
+                jd_text=jd_text,
+                timeout=timeout,
+            )
+            if english_query:
+                status = "bilingual_query_generated"
+        except Exception as exc:  # noqa: BLE001 - retrieval query enhancement must not block the main flow
+            error = str(exc)
+
+    mixed_query = original_query
+    if english_query:
+        mixed_query = (
+            "Original Chinese role/JD:\n"
+            f"{original_query}\n\n"
+            "English retrieval query for SWEBOK/software engineering knowledge base:\n"
+            f"{english_query}"
+        )
+
+    return {
+        "query": mixed_query,
+        "original_query": original_query,
+        "english_query": english_query,
+        "status": status,
+        "error": error,
     }
 
 
@@ -325,7 +426,13 @@ def main() -> None:
 
     started_at = time.perf_counter()
     config = get_config(args.env)
-    chunks = retrieve_chunks(args.query, args.model, args.index_dir, args.top_k)
+    retrieval_query = build_bilingual_retrieval_query(
+        config=config,
+        role_name=args.role_name,
+        jd_text=args.query,
+        timeout=args.timeout,
+    )
+    chunks = retrieve_chunks(retrieval_query["query"], args.model, args.index_dir, args.top_k)
     prompt = build_prompt(args.role_id, args.role_name, args.query, chunks)
 
     last_error: Exception | None = None
@@ -352,6 +459,7 @@ def main() -> None:
     output = {
         "profile": profile,
         "retrieved_chunks": chunks,
+        "retrieval_query": retrieval_query,
         "deepseek_model": config["model"],
         "validation_errors": validate_profile(profile),
         "elapsed_seconds": round(time.perf_counter() - started_at, 3),

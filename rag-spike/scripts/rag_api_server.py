@@ -27,8 +27,14 @@ def extract_role_profile_for_request(
     started_at = time.perf_counter()
     query = jd_text.strip() or role_name
     config = extract_role_profile.get_config(extract_role_profile.ENV_PATH)
+    retrieval_query = extract_role_profile.build_bilingual_retrieval_query(
+        config=config,
+        role_name=role_name,
+        jd_text=query,
+        timeout=timeout,
+    )
     chunks = extract_role_profile.retrieve_chunks(
-        query=query,
+        query=retrieval_query["query"],
         model_name=extract_role_profile.DEFAULT_MODEL,
         index_dir=extract_role_profile.INDEX_DIR,
         top_k=top_k,
@@ -58,6 +64,7 @@ def extract_role_profile_for_request(
     return {
         "profile": profile,
         "retrieved_chunks": chunks,
+        "retrieval_query": retrieval_query,
         "deepseek_model": config["model"],
         "validation_errors": extract_role_profile.validate_profile(profile),
         "elapsed_seconds": round(time.perf_counter() - started_at, 3),

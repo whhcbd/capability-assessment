@@ -29,6 +29,7 @@ class AssessmentService:
         role_api_meta = {
             "deepseek_model": result.get("deepseek_model"),
             "retrieved_chunks": result.get("retrieved_chunks") or [],
+            "retrieval_query": result.get("retrieval_query") or {},
             "validation_errors": result.get("validation_errors") or [],
             "elapsed_seconds": result.get("elapsed_seconds"),
         }
@@ -103,6 +104,7 @@ class AssessmentService:
             "questionnaire_api_meta": {
                 "deepseek_model": result.get("deepseek_model"),
                 "retrieved_chunks": result.get("retrieved_chunks") or [],
+                "retrieval_query": result.get("retrieval_query") or {},
                 "validation_errors": result.get("validation_errors") or [],
                 "elapsed_seconds": result.get("elapsed_seconds"),
                 "llm_status": result.get("llm_status"),

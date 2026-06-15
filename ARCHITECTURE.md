@@ -186,6 +186,8 @@ rag-spike/outputs/index-build-report.json
 
 报告包含 Markdown chunk 数、PDF 文件数、PDF 总页数、可抽文本页数、空页数和 PDF chunk 数。
 
+检索英文 SWEBOK PDF 时，后端会先用 DeepSeek 把中文岗位/JD 压缩为英文 retrieval query，再把中文原文和英文 query 拼接后做 embedding 检索。英文 query 生成失败时回退到中文原文检索，不中断主流程。
+
 ## 数据流
 
 岗位雷达：
@@ -194,6 +196,7 @@ rag-spike/outputs/index-build-report.json
 target_role + target_jd
 -> server/service.py
 -> rag-spike/scripts/extract_role_profile.py
+-> build_bilingual_retrieval_query()
 -> retrieve_chunks()
 -> DeepSeek structured extraction
 -> role_capability_profile
@@ -207,6 +210,7 @@ AI 岗位问卷：
 target_role + target_jd
 -> server/service.py
 -> rag-spike/scripts/generate_questionnaire.py
+-> build_bilingual_retrieval_query()
 -> retrieve_chunks()
 -> DeepSeek structured questionnaire generation
 -> 15 role-specific questionnaire_items

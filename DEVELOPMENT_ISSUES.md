@@ -13,6 +13,7 @@
 - 第一版学生身份来自 `X-Student-Id` header，默认 `demo_user_001`。
 - RAG / Ability / AI 问卷生成为同步接口。
 - AI 岗位问卷第一版基于本地私有 SWEBOK PDF + DeepSeek，生成 15 道 1-5 分自评题。
+- SWEBOK PDF 为英文资料，RAG 检索已改为中文原始岗位/JD + 英文 retrieval query 的双语混合检索。
 
 ## 已完成
 
@@ -38,6 +39,7 @@
 - [已完成] SWEBOK PDF 私有目录约定为 `rag-spike/private-data/swebok-v4.pdf`。
 - [已完成] `.gitignore` 忽略 `rag-spike/private-data/`。
 - [已完成] PDF chunk metadata 支持 `source_file`、`source_type`、`page_number`、`chunk_index`。
+- [已完成] 岗位雷达和 AI 岗位问卷检索支持双语混合 query，改善中文 JD 检索英文 SWEBOK 的召回质量。
 - [已完成] 前端统一到 `VITE_CAPABILITY_API_BASE_URL`，旧 API env 只作过渡 fallback。
 - [已完成] 新增后端轻量测试，不调用真实 DeepSeek。
 - [已完成] 新增 AI 问卷 schema 校验测试。
