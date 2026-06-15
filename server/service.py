@@ -4,8 +4,8 @@ from typing import Any
 
 from .profile_merge import merge_capability_profile
 from .repository import AssessmentRepository
-from .schemas import CapabilityEvidenceRequest, RoleProfileRequest
-from .script_adapters import build_capability_evidence, build_role_profile
+from .schemas import CapabilityEvidenceRequest, RoleGeneratedQuestionnaireRequest, RoleProfileRequest
+from .script_adapters import build_capability_evidence, build_role_profile, build_role_questionnaire
 
 
 class AssessmentService:
@@ -80,3 +80,31 @@ class AssessmentService:
             ability_api_meta=ability_api_meta,
             questionnaire_answers=answers,
         )
+
+    def generate_role_questionnaire(
+        self,
+        *,
+        request: RoleGeneratedQuestionnaireRequest,
+    ) -> dict[str, Any]:
+        result = build_role_questionnaire(
+            role_name=request.target_role.strip(),
+            jd_text=request.target_jd.strip() or request.target_role.strip(),
+            question_count=request.question_count,
+            top_k=request.top_k,
+            timeout=request.timeout,
+            retries=request.retries,
+        )
+        return {
+            "role_id": request.role_id,
+            "target_role": request.target_role.strip(),
+            "target_jd": request.target_jd.strip(),
+            "questionnaire_items": result["questionnaire_items"],
+            "source_refs": result.get("source_refs") or [],
+            "questionnaire_api_meta": {
+                "deepseek_model": result.get("deepseek_model"),
+                "retrieved_chunks": result.get("retrieved_chunks") or [],
+                "validation_errors": result.get("validation_errors") or [],
+                "elapsed_seconds": result.get("elapsed_seconds"),
+                "llm_status": result.get("llm_status"),
+            },
+        }

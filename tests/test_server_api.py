@@ -94,3 +94,41 @@ def test_capability_evidence_returns_404_for_wrong_student(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"]["error"] == "Assessment session not found for this student."
+
+
+def test_role_generated_questionnaire_endpoint(monkeypatch) -> None:
+    def generate_role_questionnaire(*, request: Any) -> dict[str, Any]:
+        return {
+            "role_id": request.role_id,
+            "target_role": request.target_role,
+            "target_jd": request.target_jd,
+            "questionnaire_items": [
+                {
+                    "id": "ai_01",
+                    "capability_key": "logical_analysis",
+                    "indicator": "需求拆解",
+                    "evidence_type": "AI 岗位问卷",
+                    "text": "面对一个模糊功能需求时，我能先澄清用户、目标、约束和验收标准。",
+                    "reverse": False,
+                }
+            ],
+            "source_refs": ["swebok-v4.pdf#page_10#chunk_1"],
+            "questionnaire_api_meta": {"llm_status": "llm_generated_role_questionnaire"},
+        }
+
+    monkeypatch.setattr(main.service, "generate_role_questionnaire", generate_role_questionnaire)
+    client = TestClient(main.app)
+
+    response = client.post(
+        "/questionnaires/role-generated",
+        json={
+            "target_role": "互联网产品经理实习生",
+            "target_jd": "负责需求分析和研发协作。",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["questionnaire_items"][0]["id"] == "ai_01"
+    assert payload["questionnaire_items"][0]["capability_key"] == "logical_analysis"
+    assert payload["source_refs"] == ["swebok-v4.pdf#page_10#chunk_1"]

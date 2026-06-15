@@ -60,6 +60,8 @@ def main() -> None:
                 "id": item_id,
                 "distance": round(float(distance), 6),
                 "source_file": metadata.get("source_file"),
+                "source_type": metadata.get("source_type"),
+                "page_number": metadata.get("page_number"),
                 "chunk_index": metadata.get("chunk_index"),
                 "text": document,
             }

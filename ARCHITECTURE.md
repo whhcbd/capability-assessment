@@ -1,16 +1,17 @@
 # 能力评估智能体架构
 
-本文描述本仓库当前正式化后的独立架构。项目已从原仓库拆出，运行时不依赖外层 `career` 仓库或 `agent/capability-assessment` 路径。
+本文描述当前独立仓库的正式架构。项目运行时以本仓库根目录为准，不依赖外层 `career` 仓库或旧的 `agent/capability-assessment` 路径。
 
 ## 模块
 
 | 模块 | 路径 | 作用 |
 | --- | --- | --- |
-| Vue App | `app/` | 独立 Vue 3 + Vite + TypeScript 学生个人界面流程 |
-| Capability API | `server/` | 独立 FastAPI 后端，统一简历解析、岗位雷达、问卷评分和 SQLite 持久化 |
-| RAG / Ability spike | `rag-spike/scripts/` | DeepSeek、Chroma、简历解析和能力评分底层逻辑来源；其中 `*_api_server.py` 仅作 legacy 本地入口 |
+| Vue App | `app/` | 独立 Vue 3 + Vite + TypeScript 前端，承载简历/JD 输入、问卷和个人界面 |
+| Capability API | `server/` | 独立 FastAPI 后端，统一简历解析、岗位雷达、AI 问卷生成、问卷评分和 SQLite 持久化 |
+| RAG / Ability scripts | `rag-spike/scripts/` | DeepSeek、Chroma、简历解析、能力评分、PDF/Markdown 索引和 AI 问卷生成底层逻辑 |
+| Private knowledge base | `rag-spike/private-data/` | 本地私有知识库目录，当前约定放置 `swebok-v4.pdf`，不提交 git |
 | Shared schema docs | `docs/capability-schema.md` | 8 个统一 `capability_key` 和画像 JSON 结构 |
-| Product backend issues | `docs/product-backend-issues.md` | 从 demo API 升级为正式后端的 issue 拆分 |
+| Tests | `tests/` | 独立后端轻量测试，不触发真实 DeepSeek、HuggingFace 下载或大索引构建 |
 
 ## 边界
 
@@ -21,22 +22,24 @@
 - 第一版使用同步接口调用 RAG / DeepSeek。
 - 数据持久化使用本地 SQLite。
 - 浏览器端不保存 `DEEPSEEK_API_KEY`。
+- `demo/` 和 `rag-spike/scripts/*_api_server.py` 只作为 legacy / spike 参考。
 
-## 请求流
+## 主流程
 
 ```text
 用户打开 Vite app
--> 上传或粘贴简历，选择预置岗位 JD 或填写其他 JD
+-> 上传或粘贴简历，选择预置岗位 JD 或填写自定义 JD
 -> 如上传文件，POST /resume-text
 -> 进入是否填写问卷页面
--> 稍后填写：POST /assessments/role-profile
+-> 选择稍后填写或选择 10 题、48 题、AI 岗位问卷 15 题
+-> POST /assessments/role-profile
 -> 后端创建 assessment session，保存 role_profile，状态 questionnaire_pending
--> 前端进入个人界面，显示理想岗位雷达和个人能力雷达空状态
--> 立即填写或稍后补填问卷，可选 10 题快速模式或 48 题详细模式
+-> 如选择 AI 岗位问卷，POST /questionnaires/role-generated 生成 15 题
+-> 前端进入现有问卷页，使用统一 1-5 选项作答
 -> POST /assessments/capability-evidence
--> 后端按 assessment_id 写回 questionnaire_answers、evidence、capability_profile
+-> 后端写回 questionnaire_answers、evidence、capability_profile
 -> 状态 completed
--> 前端回到个人界面，显示合并雷达、能力明细和可执行行动清单
+-> 前端进入个人界面，展示合并雷达和能力明细
 ```
 
 ## API
@@ -53,6 +56,7 @@ Endpoint：
 GET  /health
 POST /resume-text
 POST /assessments/role-profile
+POST /questionnaires/role-generated
 POST /assessments/capability-evidence
 GET  /assessments/me/latest
 ```
@@ -81,7 +85,7 @@ GET  /assessments/me/latest
   "resume_text": "...",
   "target_role": "互联网产品经理实习生",
   "target_jd": "...",
-  "role_id": "custom_target_role",
+  "role_id": "internet_product_intern",
   "top_k": 5,
   "timeout": 120,
   "retries": 1
@@ -99,6 +103,32 @@ target_jd
 role_profile
 role_api_meta
 ```
+
+### `POST /questionnaires/role-generated`
+
+输入：
+
+```json
+{
+  "target_role": "互联网产品经理实习生",
+  "target_jd": "...",
+  "role_id": "internet_product_intern",
+  "question_count": 15,
+  "top_k": 6,
+  "timeout": 120,
+  "retries": 1
+}
+```
+
+输出包含：
+
+```text
+questionnaire_items
+source_refs
+questionnaire_api_meta
+```
+
+每个 `questionnaire_items` 元素会映射到 8 个统一 `capability_key`，前端复用当前 1-5 分问卷选项和评分提交链路。
 
 ### `POST /assessments/capability-evidence`
 
@@ -122,6 +152,83 @@ questionnaire_answers
 ```
 
 如果 `assessment_id` 不存在或不属于当前 `X-Student-Id`，返回 404。
+
+## 知识库与索引
+
+索引构建脚本：
+
+```text
+rag-spike/scripts/build_index.py
+```
+
+读取来源：
+
+```text
+rag-spike/data/*.md
+rag-spike/private-data/*.pdf
+```
+
+PDF 使用 `pypdf` 按页抽文本，空页跳过，文本切块后写入 Chroma。metadata 包含：
+
+```text
+source_file
+source_type
+page_number
+chunk_index
+chars
+```
+
+构建报告写入：
+
+```text
+rag-spike/outputs/index-build-report.json
+```
+
+报告包含 Markdown chunk 数、PDF 文件数、PDF 总页数、可抽文本页数、空页数和 PDF chunk 数。
+
+## 数据流
+
+岗位雷达：
+
+```text
+target_role + target_jd
+-> server/service.py
+-> rag-spike/scripts/extract_role_profile.py
+-> retrieve_chunks()
+-> DeepSeek structured extraction
+-> role_capability_profile
+-> SQLite
+-> Vue ProfileView
+```
+
+AI 岗位问卷：
+
+```text
+target_role + target_jd
+-> server/service.py
+-> rag-spike/scripts/generate_questionnaire.py
+-> retrieve_chunks()
+-> DeepSeek structured questionnaire generation
+-> 15 role-specific questionnaire_items
+-> Vue QuestionnaireView
+-> POST /assessments/capability-evidence
+```
+
+个人雷达：
+
+```text
+resume_text + questionnaire_answers
+-> server/service.py
+-> rag-spike/scripts/ability_api_server.py::score_capability_for_request()
+-> DeepSeek scoring
+-> evidence[]
+-> server/profile_merge.py
+-> capability_profile
+-> SQLite
+-> Vue ProfileView
+```
+
+个人雷达来自简历和问卷答案的能力证据评分，不是 RAG 检索结果。
 
 ## 存储
 
@@ -157,47 +264,13 @@ updated_at
 completed_at
 ```
 
-## 能力画像数据流
-
-岗位雷达：
-
-```text
-target_role + target_jd
--> server/service.py
--> rag-spike/scripts/rag_api_server.py::extract_role_profile_for_request()
--> retrieve_chunks()
--> DeepSeek structured extraction
--> role_capability_profile
--> SQLite
--> Vue ProfileView
-```
-
-当前 RAG 明确用于岗位雷达。`role_api_meta` 会保留模型、检索片段和耗时等信息；前端主界面目前不直接展示检索片段。
-
-个人雷达：
-
-```text
-resume_text + questionnaire_answers
--> server/service.py
--> rag-spike/scripts/ability_api_server.py::score_capability_for_request()
--> DeepSeek scoring
--> evidence[]
--> server/profile_merge.py
--> capability_profile
--> SQLite
--> Vue ProfileView
-```
-
-个人雷达来自简历和问卷答案的能力证据评分，不是 RAG 检索结果。后续如要让 RAG 填充岗位应用场景、面试场景或来源依据，需要扩展岗位画像输出或前端来源展示；当前仅作为待定事项记录在 `docs/questionnaire-report-improvement-notes.md`。
-
-前端仍保留 `app/src/services/profileMerge.ts`，用于兼容旧响应和本地展示推导；正式后端也会保存合并后的 `capability_profile`。
-
 ## 失败处理
 
 - Capability API 未启动：前端显示启动 `python -m server.main` 的指引。
 - `DEEPSEEK_API_KEY` 缺失：后端返回 502，前端显示明确错误。
-- RAG / DeepSeek 失败：不生成 mock 岗位雷达。
+- RAG / DeepSeek 失败：不生成 mock 岗位雷达或 mock AI 问卷。
 - Ability scoring 失败：不生成 mock 个人雷达。
+- SWEBOK PDF 缺失或索引为空：AI 岗位问卷生成失败并提示错误。
 - 简历解析失败：停留在简历页面或错误页，提示原因。
 
 ## Legacy

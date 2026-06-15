@@ -6,6 +6,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 try:
     import pysqlite3
@@ -15,12 +16,14 @@ except ImportError:
     pass
 
 import chromadb
+from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 
 
 DEFAULT_MODEL = "BAAI/bge-m3"
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
+PRIVATE_DATA_DIR = ROOT / "private-data"
 INDEX_DIR = ROOT / "index" / "chroma"
 OUTPUT_PATH = ROOT / "outputs" / "index-build-report.json"
 COLLECTION_NAME = "capability_role_knowledge"
@@ -28,6 +31,12 @@ COLLECTION_NAME = "capability_role_knowledge"
 
 def read_markdown_files(data_dir: Path) -> list[Path]:
     return sorted(path for path in data_dir.glob("*.md") if path.is_file())
+
+
+def read_pdf_files(data_dir: Path) -> list[Path]:
+    if not data_dir.exists():
+        return []
+    return sorted(path for path in data_dir.glob("*.pdf") if path.is_file())
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
@@ -61,12 +70,37 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     return expanded
 
 
-def build_documents(data_dir: Path, chunk_size: int, overlap: int) -> tuple[list[str], list[str], list[dict]]:
+def pdf_pages(path: Path) -> tuple[int, list[tuple[int, str]]]:
+    reader = PdfReader(str(path))
+    pages: list[tuple[int, str]] = []
+    for page_index, page in enumerate(reader.pages, start=1):
+        text = (page.extract_text() or "").strip()
+        if text:
+            pages.append((page_index, text))
+    return len(reader.pages), pages
+
+
+def build_documents(
+    data_dir: Path,
+    private_data_dir: Path,
+    chunk_size: int,
+    overlap: int,
+) -> tuple[list[str], list[str], list[dict[str, Any]], dict[str, Any]]:
     ids: list[str] = []
     documents: list[str] = []
-    metadatas: list[dict] = []
+    metadatas: list[dict[str, Any]] = []
+    report: dict[str, Any] = {
+        "markdown_files": [],
+        "pdf_files": [],
+        "pdf_total_pages": 0,
+        "pdf_extractable_pages": 0,
+        "pdf_empty_pages": 0,
+        "markdown_chunks": 0,
+        "pdf_chunks": 0,
+    }
 
     for path in read_markdown_files(data_dir):
+        report["markdown_files"].append(path.name)
         text = path.read_text(encoding="utf-8")
         for index, chunk in enumerate(chunk_text(text, chunk_size, overlap), start=1):
             ids.append(f"{path.stem}-{index:03d}")
@@ -74,18 +108,42 @@ def build_documents(data_dir: Path, chunk_size: int, overlap: int) -> tuple[list
             metadatas.append(
                 {
                     "source_file": path.name,
+                    "source_type": "markdown",
                     "chunk_index": index,
                     "chars": len(chunk),
                 }
             )
+            report["markdown_chunks"] += 1
 
-    return ids, documents, metadatas
+    for path in read_pdf_files(private_data_dir):
+        report["pdf_files"].append(path.name)
+        total_pages, pages = pdf_pages(path)
+        report["pdf_total_pages"] += total_pages
+        report["pdf_extractable_pages"] += len(pages)
+        report["pdf_empty_pages"] += total_pages - len(pages)
+        for page_number, text in pages:
+            for chunk_index, chunk in enumerate(chunk_text(text, chunk_size, overlap), start=1):
+                ids.append(f"{path.stem}-p{page_number:04d}-{chunk_index:03d}")
+                documents.append(chunk)
+                metadatas.append(
+                    {
+                        "source_file": path.name,
+                        "source_type": "pdf",
+                        "page_number": page_number,
+                        "chunk_index": chunk_index,
+                        "chars": len(chunk),
+                    }
+                )
+                report["pdf_chunks"] += 1
+
+    return ids, documents, metadatas, report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build local Chroma index for RAG spike.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="SentenceTransformers model name.")
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR, help="Markdown data directory.")
+    parser.add_argument("--private-data-dir", type=Path, default=PRIVATE_DATA_DIR, help="Private PDF data directory.")
     parser.add_argument("--index-dir", type=Path, default=INDEX_DIR, help="Chroma persistent directory.")
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Build report output path.")
     parser.add_argument("--chunk-size", type=int, default=700, help="Chunk size in characters.")
@@ -101,9 +159,14 @@ def main() -> None:
         os.environ["HF_HUB_OFFLINE"] = "1"
 
     started_at = time.perf_counter()
-    ids, documents, metadatas = build_documents(args.data_dir, args.chunk_size, args.overlap)
+    ids, documents, metadatas, source_report = build_documents(
+        args.data_dir,
+        args.private_data_dir,
+        args.chunk_size,
+        args.overlap,
+    )
     if not documents:
-        raise RuntimeError(f"No markdown chunks found in {args.data_dir}")
+        raise RuntimeError(f"No markdown or PDF chunks found in {args.data_dir} or {args.private_data_dir}")
 
     model = SentenceTransformer(args.model, local_files_only=not args.allow_download)
     embeddings = model.encode(documents, normalize_embeddings=True).tolist()
@@ -120,13 +183,16 @@ def main() -> None:
         "collection": COLLECTION_NAME,
         "model": args.model,
         "data_dir": str(args.data_dir.resolve()),
+        "private_data_dir": str(args.private_data_dir.resolve()),
         "index_dir": str(args.index_dir.resolve()),
         "document_count": len(documents),
         "source_files": [path.name for path in read_markdown_files(args.data_dir)],
+        "private_source_files": [path.name for path in read_pdf_files(args.private_data_dir)],
         "embedding_dimension": len(embeddings[0]),
         "build_seconds": round(time.perf_counter() - started_at, 3),
         "uses_remote_vector_db": False,
         "allow_download": args.allow_download,
+        **source_report,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")

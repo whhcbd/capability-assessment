@@ -64,6 +64,7 @@ const {
       :target-role="state.targetRole"
       :error="state.error"
       :is-analyzing="state.isAnalyzing"
+      :is-generating-questionnaire="state.isGeneratingQuestionnaire"
       @start-quiz="beginQuestionnaire"
       @skip-quiz="goToProfileWithoutQuiz"
       @back="setView('intake')"

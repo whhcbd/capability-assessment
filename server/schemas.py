@@ -31,6 +31,34 @@ class CapabilityEvidenceRequest(BaseModel):
     retries: int = Field(default=1, ge=0, le=3)
 
 
+class RoleGeneratedQuestionnaireRequest(BaseModel):
+    target_role: str = Field(min_length=1)
+    target_jd: str = ""
+    role_id: str = "custom_target_role"
+    question_count: int = Field(default=15, ge=1, le=20)
+    top_k: int = Field(default=6, ge=1, le=10)
+    timeout: int = Field(default=120, ge=5, le=180)
+    retries: int = Field(default=1, ge=0, le=3)
+
+
+class GeneratedQuestionnaireItem(BaseModel):
+    id: str
+    capability_key: str
+    indicator: str
+    evidence_type: str
+    text: str
+    reverse: bool = False
+
+
+class RoleGeneratedQuestionnaireResponse(BaseModel):
+    role_id: str
+    target_role: str
+    target_jd: str
+    questionnaire_items: list[GeneratedQuestionnaireItem]
+    source_refs: list[str] = []
+    questionnaire_api_meta: dict[str, Any] | None = None
+
+
 class AssessmentResponse(BaseModel):
     assessment_id: str
     student_id: str

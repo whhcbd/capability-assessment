@@ -3,6 +3,7 @@ import { capabilities, capabilityByKey } from "../data/capabilities";
 import { questionnaireItems, quickQuestionnaireItems } from "../data/questionnaire";
 import { customRoleOptionId, findRoleOption } from "../data/roleOptions";
 import { fetchCapabilityEvidence, uploadResumeFile } from "../services/abilityApi";
+import { fetchRoleGeneratedQuestionnaire } from "../services/questionnaireApi";
 import { fetchRoleProfile } from "../services/ragApi";
 import {
   createEmptyCapabilityProfile,
@@ -36,16 +37,18 @@ interface AssessmentState {
   error: string;
   isUploading: boolean;
   isAnalyzing: boolean;
+  isGeneratingQuestionnaire: boolean;
   questionnaireMode: QuestionnaireMode;
   questionnaire: Record<string, number | null>;
+  generatedQuestionnaireItems: typeof questionnaireItems;
   capabilityProfile: CapabilityProfile | null;
   roleProfile: RoleCapabilityProfile | null;
   evidence: CapabilityEvidenceGroup[];
   apiMeta: ApiMeta;
 }
 
-function createQuestionnaireState(): Record<string, number | null> {
-  return Object.fromEntries(questionnaireItems.map((item) => [item.id, null]));
+function createQuestionnaireState(items = questionnaireItems): Record<string, number | null> {
+  return Object.fromEntries(items.map((item) => [item.id, null]));
 }
 
 function createInitialState(): AssessmentState {
@@ -62,8 +65,10 @@ function createInitialState(): AssessmentState {
     error: "",
     isUploading: false,
     isAnalyzing: false,
+    isGeneratingQuestionnaire: false,
     questionnaireMode: "detailed",
     questionnaire: createQuestionnaireState(),
+    generatedQuestionnaireItems: [],
     capabilityProfile: null,
     roleProfile: null,
     evidence: [],
@@ -85,7 +90,11 @@ export function useAssessmentFlow() {
   let pendingAdvanceTimer: number | null = null;
 
   const activeQuestionnaireItems = computed(() =>
-    state.questionnaireMode === "quick" ? quickQuestionnaireItems : questionnaireItems,
+    state.questionnaireMode === "quick"
+      ? quickQuestionnaireItems
+      : state.questionnaireMode === "role_generated"
+        ? state.generatedQuestionnaireItems
+        : questionnaireItems,
   );
 
   const completedQuestionnaireCount = computed(
@@ -103,7 +112,11 @@ export function useAssessmentFlow() {
     Math.round(((state.currentQuestion + 1) / activeQuestionnaireItems.value.length) * 100),
   );
   const questionnaireTotal = computed(() => activeQuestionnaireItems.value.length);
-  const questionnaireModeLabel = computed(() => (state.questionnaireMode === "quick" ? "快速模式" : "详细模式"));
+  const questionnaireModeLabel = computed(() => {
+    if (state.questionnaireMode === "quick") return "快速模式";
+    if (state.questionnaireMode === "role_generated") return "AI 岗位问卷";
+    return "详细模式";
+  });
 
   const capabilityProfile = computed(() => state.capabilityProfile ?? createEmptyCapabilityProfile());
 
@@ -167,6 +180,7 @@ export function useAssessmentFlow() {
     state.view = view;
     state.isUploading = false;
     state.isAnalyzing = false;
+    state.isGeneratingQuestionnaire = false;
   }
 
   function validateIntake(): string {
@@ -240,8 +254,34 @@ export function useAssessmentFlow() {
     setView("questionnairePrompt");
   }
 
-  function beginQuestionnaire(mode: QuestionnaireMode = "detailed") {
+  async function beginQuestionnaire(mode: QuestionnaireMode = "detailed") {
+    if (mode === "role_generated") {
+      state.error = "";
+      state.isGeneratingQuestionnaire = true;
+      try {
+        const generatedItems = await fetchRoleGeneratedQuestionnaire({
+          targetRole: state.targetRole,
+          targetJd: state.targetJd,
+          questionCount: 15,
+        });
+        state.generatedQuestionnaireItems = generatedItems;
+        state.questionnaireMode = mode;
+        state.questionnaire = createQuestionnaireState(generatedItems);
+        state.currentQuestion = 0;
+        setView("quiz");
+      } catch (error) {
+        setError(
+          `无法生成 AI 岗位问卷：${error instanceof Error ? error.message : "服务暂时不可用"}。请确认 Capability API、DeepSeek key 和 SWEBOK 知识库索引已准备好。`,
+          "questionnairePrompt",
+        );
+      } finally {
+        state.isGeneratingQuestionnaire = false;
+      }
+      return;
+    }
+
     state.questionnaireMode = mode;
+    state.questionnaire = createQuestionnaireState(questionnaireItems);
     state.currentQuestion = 0;
     setView("quiz");
   }

@@ -11,29 +11,36 @@
 - `demo/` 是 legacy 静态版本，不再作为当前主演示入口。
 - 后端第一版使用 SQLite 按 `student_id` 持久化评估会话。
 - 第一版学生身份来自 `X-Student-Id` header，默认 `demo_user_001`。
-- 第一版 RAG / Ability 分析为同步接口。
+- RAG / Ability / AI 问卷生成为同步接口。
+- AI 岗位问卷第一版基于本地私有 SWEBOK PDF + DeepSeek，生成 15 道 1-5 分自评题。
 
 ## 已完成
 
 - [已完成] JD 输入改为预置岗位 + `其他` 自定义。
 - [已完成] 预置 JD 展示但不可编辑。
 - [已完成] 问卷改为可延后。
-- [已完成] 问卷新增 10 题快速模式和 48 题详细模式。
+- [已完成] 问卷支持 10 题快速模式和 48 题详细模式。
+- [已完成] 问卷新增 AI 岗位问卷 15 题入口。
 - [已完成] 个人界面补做或重做问卷时弹窗选择问卷模式。
-- [已完成] 原报告内容并入个人界面。
 - [已完成] 未完成问卷时显示个人雷达未测试空状态。
 - [已完成] 个人界面合并个人雷达和职业雷达，支持个人、职业、叠加视图。
-- [已完成] 雷达分数移到能力标签旁，叠加视图显示个人分/职业分。
-- [已完成] 个人界面删除“相对优势”和“优先补齐”，改为能力明细和行动清单。
+- [已完成] 个人界面能力明细改为能力、岗位应用场景、个人能力评估、针对性改进建议。
+- [已完成] 针对性改进建议改为后端 LLM 输出，并保留到 `capability_profile`。
+- [已完成] 删除独立可执行行动清单展示。
 - [已完成] 新增独立 FastAPI Capability API。
 - [已完成] 新增 SQLite 持久化评估会话。
 - [已完成] 新增 `POST /resume-text`。
 - [已完成] 新增 `POST /assessments/role-profile`。
+- [已完成] 新增 `POST /questionnaires/role-generated`。
 - [已完成] 新增 `POST /assessments/capability-evidence`。
 - [已完成] 新增 `GET /assessments/me/latest`。
+- [已完成] `rag-spike/scripts/build_index.py` 支持 `rag-spike/data/*.md` 和 `rag-spike/private-data/*.pdf`。
+- [已完成] SWEBOK PDF 私有目录约定为 `rag-spike/private-data/swebok-v4.pdf`。
+- [已完成] `.gitignore` 忽略 `rag-spike/private-data/`。
+- [已完成] PDF chunk metadata 支持 `source_file`、`source_type`、`page_number`、`chunk_index`。
 - [已完成] 前端统一到 `VITE_CAPABILITY_API_BASE_URL`，旧 API env 只作过渡 fallback。
 - [已完成] 新增后端轻量测试，不调用真实 DeepSeek。
-- [已完成] 新增 `docs/product-backend-issues.md` 记录正式后端 issue 拆分。
+- [已完成] 新增 AI 问卷 schema 校验测试。
 
 ## 未完成
 
@@ -41,22 +48,22 @@
 - [未完成] 尚未接入主项目 `backend/` 或 `frontend/`。
 - [未完成] 尚未做异步任务、任务进度轮询或队列。
 - [未完成] 尚未做大规模岗位样本稳定性验证。
-- [未完成] RAG 样例岗位仍只有产品经理实习生和数据分析实习生，覆盖不足。
-- [未完成] RAG `source_refs` 仍为 `file.md#chunk_index`，没有页码、段落或 offset 级引用。
-- [未完成] 职业个性化 AI 问卷仍为待定事项，尚未设计接口或生成链路。
-- [未完成] RAG 内容填充仍为待定事项，当前不把检索内容直接填入能力明细。
+- [未完成] AI 岗位问卷第一版只做产品经理实习生示范，不承诺所有 JD 都稳定。
+- [未完成] SWEBOK PDF 知识库和 AI 岗位问卷尚未在服务器真实 DeepSeek 链路验收。
+- [未完成] RAG 内容尚未直接进入能力明细的岗位应用场景或建议生成。
 - [未完成] Interview Agent 的 `competencyId` 到 8 个 `capability_key` 的 mapping 尚未定义。
 - [未完成] `interview_simulation` evidence 回写尚未实现。
 
 ## 已知风险
 
 - [风险] `BAAI/bge-m3` 首次加载较慢，真实演示前需要预热或接受等待。
+- [风险] SWEBOK PDF 是本地私有知识库文件，不应提交到 git；服务器需要手动放置到 `rag-spike/private-data/swebok-v4.pdf`。
+- [风险] PDF 如果不是可复制文字版，`pypdf` 可能抽取不到正文，需要换文本版或增加 OCR 管线。
 - [风险] DeepSeek API 失败、网络失败、余额不足或 key 配置错误时，当前流程会中断并显示错误，不会生成 mock 报告。
 - [风险] 学生能力 LLM 评分存在一致性、延迟和成本风险；输入证据不足时必须降低 `confidence`。
-- [风险] 当前 RAG 输出只有本地结构校验，还没有大规模稳定性测试。
-- [风险] 同步接口在真实网络较慢时会让前端等待较久；后续可按 CA-08 结果决定是否引入异步任务。
-- [风险] `rag-spike/index/chroma/` 是本地向量索引，提交策略需要团队确认。
-- [风险] 当前 RAG 只明确用于职业雷达；个人雷达来自简历和问卷评分，不应在演示中描述为 RAG 生成。
+- [风险] 同步接口在真实网络较慢时会让前端等待较久，后续可能需要引入异步任务。
+- [风险] `rag-spike/index/chroma/` 是本地向量索引，提交策略需要团队确认；默认不应提交大索引。
+- [风险] 当前 RAG 明确用于职业雷达和 AI 问卷生成；个人雷达来自简历和问卷评分，不应在演示中描述为 RAG 生成。
 
 ## 当前运行方式
 
@@ -76,25 +83,35 @@ python -m server.main --host 0.0.0.0 --port 8770
 ```bash
 cd /path/to/capability-assessment/app
 npm install
-npm run dev
+npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-验证：
+构建 SWEBOK 知识库索引：
+
+```bash
+cd /path/to/capability-assessment
+mkdir -p rag-spike/private-data
+# 放置 PDF: rag-spike/private-data/swebok-v4.pdf
+python rag-spike/scripts/build_index.py
+```
+
+轻量验证：
 
 ```bash
 cd /path/to/capability-assessment
 python -m pytest -p no:cacheprovider --basetemp .pytest-tmp tests
-python -m compileall server tests
+python -m compileall server tests rag-spike/scripts
 cd /path/to/capability-assessment/app
 npm run build
 ```
 
 ## 下一步
 
-1. 用真实 `DEEPSEEK_API_KEY` 做 CA-08 人工验收。
-2. 根据真实耗时判断是否需要异步任务。
-3. 扩展岗位 JD 样本到 5-10 个。
-4. 增加 RAG context selector 或 reranker。
-5. 决定职业个性化 AI 问卷是否作为第三种问卷模式。
-6. 决定 RAG 内容是否进入能力明细的岗位应用场景。
-7. 明确 Interview Agent 结果回写 mapping。
+1. 在服务器确认 `rag-spike/private-data/swebok-v4.pdf` 存在。
+2. 在服务器构建 Chroma 索引，并检查 `index-build-report.json` 中 `pdf_extractable_pages > 0`、`indexed_chunks > 0`。
+3. 用真实 `DEEPSEEK_API_KEY` 验收产品经理实习生 AI 岗位问卷 15 题。
+4. 检查生成题目是否贴合软件工程/产品岗位语境，是否能正常提交评分进入个人界面。
+5. 根据真实耗时判断是否需要异步任务。
+6. 扩展岗位 JD 样本到 5-10 个。
+7. 决定 RAG 内容是否进入能力明细的岗位应用场景。
+8. 明确 Interview Agent 结果回写 mapping。

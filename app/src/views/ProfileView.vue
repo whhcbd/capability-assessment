@@ -166,6 +166,9 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
           <button class="secondary" type="button" @click="chooseQuestionnaireMode('detailed')">
             详细模式 · 48 题
           </button>
+          <button class="secondary" type="button" @click="chooseQuestionnaireMode('role_generated')">
+            AI 岗位问卷 · 15 题
+          </button>
           <button class="ghost-button" type="button" @click="isModeDialogOpen = false">取消</button>
         </div>
       </section>

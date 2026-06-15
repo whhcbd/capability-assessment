@@ -5,6 +5,7 @@ defineProps<{
   targetRole: string;
   error: string;
   isAnalyzing: boolean;
+  isGeneratingQuestionnaire: boolean;
 }>();
 
 defineEmits<{
@@ -19,7 +20,7 @@ defineEmits<{
     <div class="page-title">
       <p class="eyebrow">Step 2</p>
       <h1>要现在填写能力问卷吗？</h1>
-      <p>你已经完成简历和理想岗位信息。可以选择 10 题快速模式跑通演示，也可以完成 48 题详细模式。</p>
+      <p>你已经完成简历和理想岗位信息。可以选择 10 题快速模式、48 题详细模式，或生成 15 题 AI 岗位问卷。</p>
     </div>
 
     <p v-if="error" class="notice error">{{ error }}</p>
@@ -34,6 +35,14 @@ defineEmits<{
       <div class="prompt-actions">
         <button class="primary" type="button" @click="$emit('startQuiz', 'quick')">快速模式 · 10 题</button>
         <button class="secondary" type="button" @click="$emit('startQuiz', 'detailed')">详细模式 · 48 题</button>
+        <button
+          class="secondary"
+          type="button"
+          :disabled="isGeneratingQuestionnaire"
+          @click="$emit('startQuiz', 'role_generated')"
+        >
+          {{ isGeneratingQuestionnaire ? "正在生成 AI 岗位问卷" : "AI 岗位问卷 · 15 题" }}
+        </button>
         <button class="secondary" type="button" :disabled="isAnalyzing" @click="$emit('skipQuiz')">
           {{ isAnalyzing ? "正在生成岗位雷达" : "稍后填写，进入个人界面" }}
         </button>

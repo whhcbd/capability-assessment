@@ -11,6 +11,8 @@ from .repository import AssessmentRepository
 from .schemas import (
     AssessmentResponse,
     CapabilityEvidenceRequest,
+    RoleGeneratedQuestionnaireRequest,
+    RoleGeneratedQuestionnaireResponse,
     ResumeTextResponse,
     RoleProfileRequest,
 )
@@ -70,6 +72,7 @@ def health() -> dict[str, object]:
             "/resume-text",
             "/assessments/role-profile",
             "/assessments/capability-evidence",
+            "/questionnaires/role-generated",
             "/assessments/me/latest",
         ],
     }
@@ -116,6 +119,20 @@ def capability_evidence(
             detail={"error": str(error)},
         ) from error
     except Exception as error:  # noqa: BLE001 - convert AI scoring errors to API response
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"error": str(error)},
+        ) from error
+
+
+@app.post("/questionnaires/role-generated", response_model=RoleGeneratedQuestionnaireResponse)
+def role_generated_questionnaire(
+    request: RoleGeneratedQuestionnaireRequest,
+) -> RoleGeneratedQuestionnaireResponse:
+    try:
+        payload = service.generate_role_questionnaire(request=request)
+        return RoleGeneratedQuestionnaireResponse(**payload)
+    except Exception as error:  # noqa: BLE001 - convert AI/RAG errors to API response
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"error": str(error)},

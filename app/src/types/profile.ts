@@ -121,6 +121,31 @@ export interface ResumeTextResponse {
   error?: string;
 }
 
+export interface RoleGeneratedQuestionnaireItem {
+  id: string;
+  capability_key: CapabilityKey;
+  indicator: string;
+  evidence_type: string;
+  text: string;
+  reverse: boolean;
+}
+
+export interface RoleGeneratedQuestionnaireResponse {
+  role_id?: string;
+  target_role?: string;
+  target_jd?: string;
+  questionnaire_items?: RoleGeneratedQuestionnaireItem[];
+  source_refs?: string[];
+  questionnaire_api_meta?: {
+    deepseek_model?: string;
+    retrieved_chunks?: unknown[];
+    validation_errors?: string[];
+    elapsed_seconds?: number;
+    llm_status?: string;
+  };
+  error?: string;
+}
+
 export interface ApiMeta {
   ability?: {
     model?: string;
@@ -134,7 +159,7 @@ export interface ApiMeta {
   };
 }
 
-export type QuestionnaireMode = "quick" | "detailed";
+export type QuestionnaireMode = "quick" | "detailed" | "role_generated";
 
 export type FlowView = "start" | "intake" | "questionnairePrompt" | "quiz" | "analyzing" | "profile" | "error";
 
