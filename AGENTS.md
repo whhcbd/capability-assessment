@@ -17,7 +17,7 @@
 
 ```text
 简历与理想岗位
--> 是否填写问卷
+-> 是否填写问卷（10 题快速 / 48 题详细）
 -> 个人界面
 ```
 
@@ -54,6 +54,8 @@ agent/capability-assessment/data/capability-assessment.sqlite3
 
 - `app/`：当前 Vue app。
 - `app/src/composables/useAssessmentFlow.ts`：流程状态、校验、上传、岗位雷达生成、问卷提交和个人界面派生数据。
+- `app/src/views/ProfileView.vue`：个人界面，包含合并雷达、问卷模式弹窗、能力明细和行动清单。
+- `app/src/components/RadarChart.vue`：个人/职业雷达叠加展示，分数显示在能力标签旁。
 - `app/src/data/roleOptions.ts`：预置岗位 JD 选项。
 - `app/src/services/`：Capability API client 和画像合并逻辑。
 - `server/`：正式独立 FastAPI 后端。
@@ -64,6 +66,8 @@ agent/capability-assessment/data/capability-assessment.sqlite3
 - `server/profile_merge.py`：后端能力画像合并。
 - `tests/`：独立后端测试。
 - `docs/product-backend-issues.md`：从 demo 到正式后端的 issue 拆分。
+- `docs/questionnaire-report-improvement-notes.md`：问卷和个人界面优化归纳，以及职业个性化 AI 问卷、RAG 内容填充待定事项。
+- `docs/questionnaire-report-improvement-issues.md`：问卷和个人界面优化 issue 状态。
 - `rag-spike/`：RAG / DeepSeek spike 和底层脚本。
 - `demo/`：legacy 静态 demo。
 
@@ -130,6 +134,8 @@ cd C:\code\career
 - `score` 必须限制在 `0-100`。
 - `confidence` 必须限制在 `0.00-1.00`。
 - RAG `source_refs` 必须使用 `file.md#chunk_index`。
+- 当前 RAG 明确用于职业雷达 / 岗位能力需求图；个人雷达来自简历和问卷能力证据，不要描述为 RAG 生成。
+- 职业个性化 AI 问卷和 RAG 内容填充目前是待定事项，未确认前不要实现新接口或改 schema。
 - 不要把 mock 输出描述为生产级真实 RAG。
 - 不要把 legacy `demo/` mock fallback 搬回当前主流程。
 

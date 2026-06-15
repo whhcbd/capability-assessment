@@ -32,10 +32,11 @@
 -> 稍后填写：POST /assessments/role-profile
 -> 后端创建 assessment session，保存 role_profile，状态 questionnaire_pending
 -> 前端进入个人界面，显示理想岗位雷达和个人能力雷达空状态
--> 立即填写或稍后补填 48 题：POST /assessments/capability-evidence
+-> 立即填写或稍后补填问卷，可选 10 题快速模式或 48 题详细模式
+-> POST /assessments/capability-evidence
 -> 后端按 assessment_id 写回 questionnaire_answers、evidence、capability_profile
 -> 状态 completed
--> 前端回到个人界面，显示理想岗位雷达、个人雷达、优势、差距和能力明细
+-> 前端回到个人界面，显示合并雷达、能力明细和可执行行动清单
 ```
 
 ## API
@@ -171,6 +172,8 @@ target_role + target_jd
 -> Vue ProfileView
 ```
 
+当前 RAG 明确用于岗位雷达。`role_api_meta` 会保留模型、检索片段和耗时等信息；前端主界面目前不直接展示检索片段。
+
 个人雷达：
 
 ```text
@@ -184,6 +187,8 @@ resume_text + questionnaire_answers
 -> SQLite
 -> Vue ProfileView
 ```
+
+个人雷达来自简历和问卷答案的能力证据评分，不是 RAG 检索结果。后续如要让 RAG 填充岗位应用场景、面试场景或来源依据，需要扩展岗位画像输出或前端来源展示；当前仅作为待定事项记录在 `docs/questionnaire-report-improvement-notes.md`。
 
 前端仍保留 `app/src/services/profileMerge.ts`，用于兼容旧响应和本地展示推导；正式后端也会保存合并后的 `capability_profile`。
 
