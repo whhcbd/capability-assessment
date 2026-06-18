@@ -48,6 +48,7 @@ def extract_role_profile_for_request(
             content = extract_role_profile.call_deepseek(config, prompt, timeout)
             profile = extract_role_profile.extract_json_response(content)
             profile = extract_role_profile.normalize_source_refs(profile, chunks)
+            profile = extract_role_profile.normalize_role_dimensions(profile)
             validation_errors = extract_role_profile.validate_profile(profile)
             if validation_errors:
                 raise RuntimeError("; ".join(validation_errors))

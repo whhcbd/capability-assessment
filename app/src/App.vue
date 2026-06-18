@@ -20,7 +20,9 @@ const {
   questionnaireTotal,
   questionnaireModeLabel,
   overallScore,
+  radarAxes,
   capabilityRows,
+  improvementPlan,
   debugJson,
   sourceLabel,
   setView,
@@ -99,9 +101,11 @@ const {
       :overall-score="overallScore"
       :capability-profile="state.capabilityProfile"
       :role-profile="state.roleProfile"
+      :radar-axes="radarAxes"
       :questionnaire-mode-label="questionnaireModeLabel"
       :questionnaire-total="questionnaireTotal"
       :rows="capabilityRows"
+      :improvement-plan="improvementPlan"
       :debug-json="debugJson"
       :source-label="sourceLabel"
       @start-quiz="beginQuestionnaire"

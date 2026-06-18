@@ -4,10 +4,11 @@
 
 当前能力：
 
-- 始终展示理想岗位能力雷达。
+- 始终展示理想岗位能力雷达；v2 主展示为岗位专属 6 维能力模型。
 - 问卷支持 10 题快速模式、48 题详细模式和 AI 岗位问卷 15 题示范模式。
 - AI 岗位问卷基于目标岗位/JD 和本地 SWEBOK 私有知识库生成，检索时会把中文岗位输入转成英文 retrieval query 后与中文原文混合检索。
-- 完成问卷后展示个人能力雷达、合并雷达对比和能力明细。
+- 完成问卷后展示个人能力雷达、合并雷达对比和岗位 6 维能力明细。
+- 报告突出 `权重 × 差距` Top 3 关键差距，并生成 4 周提升计划。
 - 能力明细包含能力、岗位应用场景、个人能力评估、针对性改进建议。
 - 针对性改进建议来自后端 LLM 输出，目标是给出可落地、马上能做的建议。
 - 未完成问卷时展示“个人雷达还没有测试，暂时无法生成”的空状态。
@@ -31,6 +32,7 @@ tests/      独立后端轻量测试
 ```text
 首页
 -> 简历与理想岗位
+-> 生成岗位专属 6 维能力模型
 -> 选择是否现在填写问卷
    -> 10 题快速
    -> 48 题详细
@@ -41,13 +43,13 @@ tests/      独立后端轻量测试
 
 理想岗位支持两类输入：
 
-- 预置选项：`互联网产品经理实习生`、`数据分析实习生`。选择后自动填入岗位名称和 JD，JD 只读。
+- 预置选项：`互联网产品经理实习生`、`数据分析实习生`、`电商运营实习生`。选择后自动填入岗位名称和 JD，JD 只读。
 - `其他`：用户自行填写岗位名称和详细 JD。
 
 当前 RAG 的明确使用范围是职业雷达和 AI 岗位问卷生成：
 
-- `POST /assessments/role-profile` 基于目标岗位/JD 生成岗位能力需求图，检索英文 SWEBOK 时使用中文原文 + 英文 retrieval query 的混合查询。
-- `POST /questionnaires/role-generated` 基于目标岗位/JD 和本地知识库生成 15 题岗位化问卷，检索英文 SWEBOK 时同样使用双语混合查询。
+- `POST /assessments/role-profile` 基于目标岗位/JD 生成岗位能力需求图。v2 返回固定 6 个岗位专属 `role_dimensions`，每个维度映射到统一 8 维 `capability_key`。
+- `POST /questionnaires/role-generated` 基于目标岗位/JD、岗位 6 维模型和本地知识库生成 15 题岗位化问卷，题目携带 `role_dimension_id` 和兼容用 `capability_key`。
 - `POST /assessments/capability-evidence` 基于已保存简历和问卷答案生成个人能力证据，个人雷达不是 RAG 检索结果。
 
 ## 服务器部署前确认
@@ -98,11 +100,13 @@ Windows PowerShell：
 
 ```powershell
 cd C:\path\to\capability-assessment
-py -3.11 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
+
+本项目建议使用 Python 3.11。Windows 上 `pysqlite3-binary` 会被平台标记跳过，代码会使用标准库 `sqlite3`；Linux 服务器仍会按依赖安装 `pysqlite3-binary`。
 
 如果服务器需要更稳定的 `.docx` 解析，可额外安装可选依赖：
 
@@ -159,7 +163,7 @@ data/capability-assessment.sqlite3
 
 ## AI 岗位问卷知识库
 
-第一版 AI 岗位问卷只作为“产品经理实习生”示范能力。知识库使用本地私有 PDF：
+第一版 AI 岗位问卷只作为产品经理、数据分析、电商运营等样板岗位示范能力。知识库使用本地私有 PDF：
 
 ```text
 rag-spike/private-data/swebok-v4.pdf
@@ -172,6 +176,12 @@ rag-spike/data/*.md
 rag-spike/private-data/*.pdf
 ```
 
+仓库内可提交的岗位指南位于：
+
+```text
+rag-spike/data/role-capability-v2-guide.md
+```
+
 PDF 使用 `pypdf` 按页抽取文本并切块，metadata 会记录 `source_file`、`source_type=pdf`、`page_number` 和 `chunk_index`。
 
 生成接口：
@@ -180,7 +190,15 @@ PDF 使用 `pypdf` 按页抽取文本并切块，metadata 会记录 `source_file
 POST /questionnaires/role-generated
 ```
 
-接口会先用 DeepSeek 把中文目标岗位/JD 压缩成英文 retrieval query，再与中文原文拼接后检索英文 SWEBOK 知识库，最后调用 DeepSeek 生成 15 道与岗位相关的 1-5 分自评题。题目提交后仍走 `POST /assessments/capability-evidence` 评分。
+接口会先用 DeepSeek 把中文目标岗位/JD 压缩成英文 retrieval query，再与中文原文拼接后检索本地岗位指南和英文 SWEBOK 知识库，最后调用 DeepSeek 生成 15 道与岗位 6 维相关的 1-5 分自评题。题目提交后仍走 `POST /assessments/capability-evidence` 评分。
+
+## 真实样例实测
+
+6.15 会议后，主流程验收应使用真实或高可信脱敏样例，不使用“姓名 XX / 岗位 XX / 公司 XX”占位数据。样例结构和实测流程见：
+
+```text
+docs/real-sample-workflow.md
+```
 
 ## 前端安装与启动
 

@@ -43,6 +43,7 @@ def build_capability_evidence(
     timeout: int,
     retries: int,
     role_requirements: dict[str, Any] | None = None,
+    role_dimensions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return score_capability_for_request(
         user_id=user_id,
@@ -52,6 +53,7 @@ def build_capability_evidence(
         timeout=timeout,
         retries=retries,
         role_requirements=role_requirements,
+        role_dimensions=role_dimensions,
     )
 
 
@@ -63,6 +65,7 @@ def build_role_questionnaire(
     top_k: int,
     timeout: int,
     retries: int,
+    role_dimensions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return generate_role_questionnaire_for_request(
         role_name=role_name,
@@ -71,4 +74,5 @@ def build_role_questionnaire(
         top_k=top_k,
         timeout=timeout,
         retries=retries,
+        role_dimensions=role_dimensions,
     )

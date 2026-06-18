@@ -105,6 +105,7 @@ def test_role_generated_questionnaire_endpoint(monkeypatch) -> None:
             "questionnaire_items": [
                 {
                     "id": "ai_01",
+                    "role_dimension_id": "role_dim_01",
                     "capability_key": "logical_analysis",
                     "indicator": "需求拆解",
                     "evidence_type": "AI 岗位问卷",
@@ -130,5 +131,6 @@ def test_role_generated_questionnaire_endpoint(monkeypatch) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["questionnaire_items"][0]["id"] == "ai_01"
+    assert payload["questionnaire_items"][0]["role_dimension_id"] == "role_dim_01"
     assert payload["questionnaire_items"][0]["capability_key"] == "logical_analysis"
     assert payload["source_refs"] == ["swebok-v4.pdf#page_10#chunk_1"]

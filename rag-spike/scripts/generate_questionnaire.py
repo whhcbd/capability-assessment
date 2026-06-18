@@ -22,12 +22,34 @@ def build_questionnaire_prompt(
     jd_text: str,
     chunks: list[dict[str, Any]],
     question_count: int,
+    role_dimensions: list[dict[str, Any]] | None = None,
 ) -> str:
     context = "\n\n".join(
         f"[source: {extract_role_profile.build_chunk_ref(chunk)} distance={chunk['distance']}]\n{chunk['text']}"
         for chunk in chunks
     )
     keys = "\n".join(f"- {key}" for key in CAPABILITY_KEYS)
+    dimension_lines = "\n".join(
+        "- {dimension_id} | {label} | required_level={required_level} | weight={weight} | mapped={mapped}\n"
+        "  focus: {focus}\n"
+        "  method: {method}".format(
+            dimension_id=item.get("dimension_id", ""),
+            label=item.get("label", ""),
+            required_level=item.get("required_level", ""),
+            weight=item.get("weight", ""),
+            mapped=", ".join(str(key) for key in item.get("mapped_capability_keys", [])),
+            focus=item.get("questionnaire_focus", ""),
+            method=item.get("evaluation_method", ""),
+        )
+        for item in role_dimensions or []
+        if isinstance(item, dict)
+    )
+    role_dimension_requirement = (
+        "- 每题必须包含 role_dimension_id，且必须来自下方岗位专属能力维度。\n"
+        if role_dimensions
+        else ""
+    )
+    role_dimension_shape = '"role_dimension_id": "requirement_analysis",\n              ' if role_dimensions else ""
     return textwrap.dedent(
         f"""
         你是职业能力行为锚定问卷设计器。请根据目标岗位 JD 和检索到的软件工程知识库内容，
@@ -45,11 +67,16 @@ def build_questionnaire_prompt(
         只能使用以下 capability_key：
         {keys}
 
+        岗位专属能力维度：
+        {dimension_lines or "未提供，请仅按 capability_key 生成。"}
+
         输出要求：
         - 顶层必须包含 questionnaire_items 数组。
         - questionnaire_items 必须正好 {question_count} 题。
         - 每题必须包含 capability_key、indicator、evidence_type、text、reverse。
+        {role_dimension_requirement.rstrip()}
         - capability_key 必须来自上方列表。
+        - 如果提供了岗位专属能力维度，capability_key 必须优先选择该 role_dimension_id 映射到的 mapped_capability_keys 之一。
         - text 必须是中文第一人称自评陈述句，适合用“很少出现”到“稳定做到并能举出结果”五档回答。
         - text 必须贴合软件工程/互联网岗位真实工作场景，例如需求澄清、范围取舍、研发协作、测试验证、上线风险、数据判断、维护迭代。
         - text 不要问“是否知道某概念”，要问用户是否做过可观察行为。
@@ -62,7 +89,7 @@ def build_questionnaire_prompt(
           "source_refs": ["swebok-v4.pdf#page_10#chunk_1"],
           "questionnaire_items": [
             {{
-              "capability_key": "logical_analysis",
+              {role_dimension_shape}"capability_key": "logical_analysis",
               "indicator": "需求拆解",
               "evidence_type": "岗位化自评",
               "text": "面对一个模糊功能需求时，我能先澄清用户、目标、约束和验收标准，再讨论方案。",
@@ -98,7 +125,11 @@ def normalize_source_refs(payload: dict[str, Any], chunks: list[dict[str, Any]])
     return payload
 
 
-def validate_questionnaire_payload(payload: dict[str, Any], question_count: int) -> list[str]:
+def validate_questionnaire_payload(
+    payload: dict[str, Any],
+    question_count: int,
+    role_dimensions: list[dict[str, Any]] | None = None,
+) -> list[str]:
     errors: list[str] = []
     items = payload.get("questionnaire_items")
     if not isinstance(items, list):
@@ -108,6 +139,12 @@ def validate_questionnaire_payload(payload: dict[str, Any], question_count: int)
 
     reverse_count = 0
     capability_keys: set[str] = set()
+    dimension_ids = {
+        str(item.get("dimension_id"))
+        for item in role_dimensions or []
+        if isinstance(item, dict) and item.get("dimension_id")
+    }
+    seen_dimension_ids: set[str] = set()
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             errors.append(f"questionnaire_items[{index}] must be an object")
@@ -117,6 +154,12 @@ def validate_questionnaire_payload(payload: dict[str, Any], question_count: int)
         evidence_type = item.get("evidence_type")
         text = item.get("text")
         reverse = item.get("reverse")
+        role_dimension_id = item.get("role_dimension_id")
+        if dimension_ids:
+            if role_dimension_id not in dimension_ids:
+                errors.append(f"Unknown role_dimension_id at item {index + 1}: {role_dimension_id}")
+            else:
+                seen_dimension_ids.add(str(role_dimension_id))
         if key not in CAPABILITY_KEYS:
             errors.append(f"Unknown capability_key at item {index + 1}: {key}")
         else:
@@ -134,8 +177,10 @@ def validate_questionnaire_payload(payload: dict[str, Any], question_count: int)
 
     if reverse_count > 3:
         errors.append("reverse questions must be at most 3")
-    if len(capability_keys) < 6:
+    if not dimension_ids and len(capability_keys) < 6:
         errors.append("questionnaire must cover at least 6 capability_key values")
+    if dimension_ids and len(seen_dimension_ids) < min(6, len(dimension_ids)):
+        errors.append("questionnaire must cover all role_dimension_id values")
     return errors
 
 
@@ -145,6 +190,7 @@ def normalized_questionnaire_items(payload: dict[str, Any]) -> list[dict[str, An
         output.append(
             {
                 "id": f"ai_{index:02d}",
+                "role_dimension_id": str(item.get("role_dimension_id") or "").strip(),
                 "capability_key": item["capability_key"],
                 "indicator": item["indicator"].strip(),
                 "evidence_type": item["evidence_type"].strip(),
@@ -163,6 +209,7 @@ def generate_role_questionnaire_for_request(
     top_k: int = 6,
     timeout: int = 120,
     retries: int = 1,
+    role_dimensions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not 1 <= question_count <= MAX_QUESTION_COUNT:
         raise ValueError(f"question_count must be between 1 and {MAX_QUESTION_COUNT}.")
@@ -190,6 +237,7 @@ def generate_role_questionnaire_for_request(
         jd_text=jd_text,
         chunks=chunks,
         question_count=question_count,
+        role_dimensions=role_dimensions,
     )
 
     last_error: Exception | None = None
@@ -199,7 +247,7 @@ def generate_role_questionnaire_for_request(
             content = extract_role_profile.call_deepseek(config, prompt, timeout)
             payload = extract_role_profile.extract_json_response(content)
             payload = normalize_source_refs(payload, chunks)
-            validation_errors = validate_questionnaire_payload(payload, question_count)
+            validation_errors = validate_questionnaire_payload(payload, question_count, role_dimensions)
             if validation_errors:
                 raise RuntimeError("; ".join(validation_errors))
             break
@@ -218,7 +266,7 @@ def generate_role_questionnaire_for_request(
         "retrieved_chunks": chunks,
         "retrieval_query": retrieval_query,
         "deepseek_model": config["model"],
-        "validation_errors": validate_questionnaire_payload(payload, question_count),
+        "validation_errors": validate_questionnaire_payload(payload, question_count, role_dimensions),
         "elapsed_seconds": round(time.perf_counter() - started_at, 3),
         "llm_status": "llm_generated_role_questionnaire",
     }

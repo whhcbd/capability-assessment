@@ -4,7 +4,9 @@ import RadarChart from "../components/RadarChart.vue";
 import type {
   CapabilityProfile,
   CapabilityReportRow,
+  ImprovementPlanSection,
   QuestionnaireMode,
+  RadarAxis,
   RoleCapabilityProfile,
 } from "../types/profile";
 
@@ -14,9 +16,11 @@ defineProps<{
   overallScore: number;
   capabilityProfile: CapabilityProfile | null;
   roleProfile: RoleCapabilityProfile;
+  radarAxes: RadarAxis[];
   questionnaireModeLabel: string;
   questionnaireTotal: number;
   rows: CapabilityReportRow[];
+  improvementPlan: ImprovementPlanSection[];
   debugJson: string;
   sourceLabel: (source: string) => string;
 }>();
@@ -40,38 +44,19 @@ function levelLabel(score: number): string {
 }
 
 function gapLabel(item: CapabilityReportRow): string {
-  if (item.gap >= 20) return "高优先级";
-  if (item.gap >= 10) return "中优先级";
+  if (item.priority_score >= 4 || item.gap >= 20) return "高优先级";
+  if (item.priority_score >= 2 || item.gap >= 10) return "中优先级";
   if (item.gap > 0) return "低优先级";
   return "保持优势";
 }
 
-const roleScenarioText: Record<string, (targetRole: string, summary: string) => string> = {
-  communication_expression: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力常见于需求沟通、方案评审、跨团队同步和面试表达。岗位要求里提到：${summary} 建议准备一个“把复杂事情讲清楚，并让对方理解或配合”的真实例子。`,
-  logical_analysis: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力主要用在拆问题、找原因、做取舍和解释方案依据。岗位要求里提到：${summary} 建议准备一个你如何从混乱信息里拆出关键问题的案例。`,
-  learning_adaptability: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力会体现在快速上手新工具、新业务和新任务。岗位要求里提到：${summary} 建议准备一个你从不会到能交付的学习过程，而不是只说“学习能力强”。`,
-  execution_ownership: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力落在拆任务、推进进度、按时交付和主动补位。岗位要求里提到：${summary} 建议准备一个你把事情从想法推到结果的例子。`,
-  collaboration_leadership: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力常见于和同学、老师、同事或业务方协调资源。岗位要求里提到：${summary} 建议准备一个你处理分歧、推动他人配合或组织协作的案例。`,
-  self_awareness_motivation: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力体现在你为什么选择这个方向、知道自己适合什么、短板是什么。岗位要求里提到：${summary} 建议准备一段清楚说明“为什么是这个岗位”的职业动机表达。`,
-  data_digital_literacy: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力会体现在用数据看问题、用工具提效率、用指标说明结果。岗位要求里提到：${summary} 建议准备一个你用表格、指标、调研数据或工具辅助判断的例子。`,
-  business_industry_understanding: (targetRole, summary) =>
-    `在 ${targetRole} 中，这项能力体现在理解用户、行业、公司业务和岗位价值。岗位要求里提到：${summary} 建议准备一个你如何理解目标公司、产品或行业变化的例子。`,
-};
-
 function roleApplication(item: CapabilityReportRow, targetRole: string): string {
-  return roleScenarioText[item.key]?.(targetRole, item.requirement_summary) ?? item.requirement_summary;
+  return `在 ${targetRole} 中，「${item.label}」主要指：${item.description} 评估方式：${item.evaluation_method}`;
 }
 
 function personalAssessment(item: CapabilityReportRow, sourceLabel: (source: string) => string): string {
   const sources = item.evidence_sources.length ? item.evidence_sources.map(sourceLabel).join("、") : "现有材料";
-  return `当前 ${item.score} 分，岗位要求 ${item.required} 分，判定为“${levelLabel(item.score)}”。依据来自${sources}：${item.evidence_summary}`;
+  return `当前 ${item.score} 分，岗位要求 ${item.required} 分，判定为“${levelLabel(item.score)}”。${item.source_completeness}，依据来自${sources}：${item.evidence_summary}`;
 }
 
 function improvementAdvice(item: CapabilityReportRow): string {
@@ -144,6 +129,7 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
           title="能力雷达对比"
           :profile="capabilityProfile"
           :requirements="roleProfile.requirements"
+          :axes="radarAxes"
           :display-mode="capabilityProfile ? radarMode : 'role'"
         />
         <div class="radar-legend">
@@ -153,8 +139,18 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
       </div>
       <div v-if="!capabilityProfile" class="empty-state inline-empty">
         <strong>个人雷达还没有测试，暂时无法生成。</strong>
-        <p>完成快速或详细问卷后，系统会结合简历证据生成个人能力画像。</p>
+        <p>当前已生成岗位专属 6 维能力模型。完成问卷后，系统会把个人证据映射到这些岗位维度。</p>
         <button class="primary" type="button" @click="isModeDialogOpen = true">去填写问卷</button>
+      </div>
+    </section>
+
+    <section v-if="!capabilityProfile" class="report-card report-list">
+      <h2>岗位能力模型</h2>
+      <div v-for="item in rows" :key="item.dimension_id" class="insight-row">
+        <strong>{{ item.label }}</strong>
+        <span>
+          要求 {{ item.required }} 分 · 权重 {{ Math.round(item.weight * 100) }}% · {{ item.description }}
+        </span>
       </div>
     </section>
 
@@ -175,6 +171,30 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
     </div>
 
     <template v-if="capabilityProfile">
+      <section class="summary-grid">
+        <article class="report-card">
+          <h2>关键差距</h2>
+          <div v-for="item in rows.slice(0, 3)" :key="`gap-${item.dimension_id}`" class="insight-row">
+            <strong>{{ item.label }}</strong>
+            <span>
+              {{ gapLabel(item) }} · 差距 {{ item.gap }} 分 · 权重 {{ Math.round(item.weight * 100) }}% · 优先值
+              {{ item.priority_score }}
+            </span>
+          </div>
+        </article>
+        <article class="report-card">
+          <h2>评价来源</h2>
+          <div class="insight-row">
+            <strong>综合分口径</strong>
+            <span>模型/证据评价 60 + 问卷自评 25 + 人工评价 15；当前未含人工评价，已按已有来源重标化。</span>
+          </div>
+          <div class="insight-row">
+            <strong>证据型评价</strong>
+            <span>基于简历中的项目成果、量化数据和结构化问卷答题，不等同于考试客观分。</span>
+          </div>
+        </article>
+      </section>
+
       <section class="report-card report-list capability-detail-board">
         <h2>能力明细</h2>
         <div class="capability-detail-table">
@@ -187,7 +207,8 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
           <div v-for="item in rows" :key="item.key" class="capability-detail-row">
             <div class="capability-name-cell">
               <strong>{{ item.label }}</strong>
-              <small>我 {{ item.score }} · 职业 {{ item.required }} · {{ gapLabel(item) }}</small>
+              <small>我 {{ item.score }} · 职业 {{ item.required }} · 权重 {{ Math.round(item.weight * 100) }}%</small>
+              <small>{{ gapLabel(item) }} · 映射 {{ item.mapped_capability_keys.length }} 个通用能力</small>
               <span>可信度 {{ Math.round(item.confidence * 100) }}%</span>
             </div>
             <p>{{ roleApplication(item, targetRole) }}</p>
@@ -195,6 +216,19 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
             <p>{{ improvementAdvice(item) }}</p>
           </div>
         </div>
+      </section>
+
+      <section class="report-card report-list">
+        <h2>4 周提升计划</h2>
+        <div v-if="improvementPlan.length" class="plan-grid">
+          <article v-for="section in improvementPlan" :key="section.title" class="plan-section">
+            <h3>{{ section.title }}</h3>
+            <ul>
+              <li v-for="item in section.items" :key="item">{{ item }}</li>
+            </ul>
+          </article>
+        </div>
+        <p v-else class="radar-note">当前没有明显岗位差距，建议保持现有优势并继续补充真实项目证据。</p>
       </section>
 
       <details class="developer-details">

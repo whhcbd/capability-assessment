@@ -149,6 +149,7 @@ def build_capability_prompt(
     target_role: str,
     questionnaire_answers: list[dict[str, Any]],
     role_requirements: dict[str, Any] | None = None,
+    role_dimensions: list[dict[str, Any]] | None = None,
 ) -> str:
     capability_lines = "\n".join(
         f"- {item['key']}: {item['label']}。{item['description']}" for item in CAPABILITIES
@@ -166,6 +167,21 @@ def build_capability_prompt(
         f"summary={value.get('requirement_summary', '')}"
         for key, value in (role_requirements or {}).items()
         if key in CAPABILITY_KEYS and isinstance(value, dict)
+    )
+    role_dimension_lines = "\n".join(
+        "- {dimension_id} | {label} | required_level={required_level} | weight={weight} | mapped={mapped}\n"
+        "  evaluation: {evaluation}\n"
+        "  focus: {focus}".format(
+            dimension_id=item.get("dimension_id", ""),
+            label=item.get("label", ""),
+            required_level=item.get("required_level", ""),
+            weight=item.get("weight", ""),
+            mapped=", ".join(str(key) for key in item.get("mapped_capability_keys", [])),
+            evaluation=item.get("evaluation_method", ""),
+            focus=item.get("questionnaire_focus", ""),
+        )
+        for item in role_dimensions or []
+        if isinstance(item, dict)
     )
 
     return textwrap.dedent(
@@ -188,6 +204,9 @@ def build_capability_prompt(
 
         岗位能力要求（如提供，必须用于生成 improvement_advice）：
         {role_requirement_lines or "未提供岗位能力要求，仅根据 target_role、简历和问卷生成建议。"}
+
+        岗位专属能力维度（如提供，用于理解当前岗位的 6 维模型；输出仍必须使用 capability_key）：
+        {role_dimension_lines or "未提供岗位专属能力维度。"}
 
         输出要求：
         - 顶层必须包含 evidence 数组。
@@ -300,6 +319,7 @@ def score_capability_for_request(
     timeout: int,
     retries: int,
     role_requirements: dict[str, Any] | None = None,
+    role_dimensions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     started_at = time.perf_counter()
     config = extract_role_profile.get_config(extract_role_profile.ENV_PATH)
@@ -309,6 +329,7 @@ def score_capability_for_request(
         target_role=target_role,
         questionnaire_answers=questionnaire_answers,
         role_requirements=role_requirements,
+        role_dimensions=role_dimensions,
     )
 
     last_error: Exception | None = None
@@ -408,6 +429,7 @@ class AbilityApiHandler(BaseHTTPRequestHandler):
             target_role = str(payload.get("target_role") or "").strip()
             questionnaire_answers = payload.get("questionnaire_answers") or []
             role_requirements = payload.get("role_requirements") or None
+            role_dimensions = payload.get("role_dimensions") or None
             timeout = int(payload.get("timeout") or 90)
             retries = int(payload.get("retries") or 1)
 
@@ -430,6 +452,7 @@ class AbilityApiHandler(BaseHTTPRequestHandler):
                 timeout=timeout,
                 retries=retries,
                 role_requirements=role_requirements if isinstance(role_requirements, dict) else None,
+                role_dimensions=role_dimensions if isinstance(role_dimensions, list) else None,
             )
             self.send_json(result)
         except Exception as error:  # noqa: BLE001 - return structured local demo errors

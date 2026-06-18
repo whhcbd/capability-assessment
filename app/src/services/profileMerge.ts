@@ -4,6 +4,7 @@ import type {
   CapabilityEvidenceItem,
   CapabilityKey,
   CapabilityProfile,
+  RoleDimension,
   RoleCapabilityProfile,
   RoleRequirement,
 } from "../types/profile";
@@ -106,6 +107,24 @@ export function mergeCapabilityProfile(evidenceGroups: CapabilityEvidenceGroup[]
 
 export function normalizeRoleProfile(profile: Partial<RoleCapabilityProfile>, targetRole: string): RoleCapabilityProfile {
   const rawRequirements = profile.requirements ?? {};
+  const normalizedRequirements = Object.fromEntries(
+    capabilities.map(({ key }) => {
+      const raw = (rawRequirements as Partial<Record<CapabilityKey, Partial<RoleRequirement>>>)[key] ?? {};
+      return [
+        key,
+        {
+          required_level: clampScore(raw.required_level ?? 55),
+          weight: Number(raw.weight ?? 0),
+          requirement_summary: raw.requirement_summary || "该能力要求由岗位资料生成，建议结合具体 JD 阅读。",
+        },
+      ];
+    }),
+  ) as RoleCapabilityProfile["requirements"];
+  const rawDimensions = Array.isArray(profile.role_dimensions) ? profile.role_dimensions : [];
+  const roleDimensions = rawDimensions.length
+    ? rawDimensions.slice(0, 6).map((dimension, index) => normalizeRoleDimension(dimension, index))
+    : legacyDimensionsFromRequirements(normalizedRequirements);
+
   return {
     role_id: profile.role_id || "custom_target_role",
     role_name: profile.role_name || targetRole,
@@ -113,20 +132,48 @@ export function normalizeRoleProfile(profile: Partial<RoleCapabilityProfile>, ta
     source_type: profile.source_type || "rag_generated_role_profile",
     rag_status: profile.rag_status || "generated",
     source_refs: Array.isArray(profile.source_refs) ? profile.source_refs : [],
-    requirements: Object.fromEntries(
-      capabilities.map(({ key }) => {
-        const raw = (rawRequirements as Partial<Record<CapabilityKey, Partial<RoleRequirement>>>)[key] ?? {};
-        return [
-          key,
-          {
-            required_level: clampScore(raw.required_level ?? 55),
-            weight: Number(raw.weight ?? 0),
-            requirement_summary: raw.requirement_summary || "该能力要求由岗位资料生成，建议结合具体 JD 阅读。",
-          },
-        ];
-      }),
-    ) as RoleCapabilityProfile["requirements"],
+    role_dimensions: roleDimensions,
+    requirements: normalizedRequirements,
   };
+}
+
+function normalizeRoleDimension(dimension: Partial<RoleDimension>, index: number): RoleDimension {
+  const mappedKeys = Array.isArray(dimension.mapped_capability_keys)
+    ? dimension.mapped_capability_keys.filter((key): key is CapabilityKey =>
+        capabilities.some((capability) => capability.key === key),
+      )
+    : [];
+  const fallback = capabilities[index % capabilities.length];
+  return {
+    dimension_id: dimension.dimension_id || `role_dim_${String(index + 1).padStart(2, "0")}`,
+    label: dimension.label || fallback.label,
+    description: dimension.description || fallback.description,
+    required_level: clampScore(dimension.required_level ?? 55),
+    weight: Math.max(0, Math.min(1, Number(dimension.weight ?? 0))),
+    mapped_capability_keys: mappedKeys.length ? mappedKeys : [fallback.key],
+    evaluation_method: dimension.evaluation_method || "结合简历证据、问卷自评和模型判断进行评价。",
+    questionnaire_focus: dimension.questionnaire_focus || "围绕该岗位能力设计行为锚定自评题。",
+    knowledge_basis: dimension.knowledge_basis || "依据目标 JD 和本地岗位资料生成。",
+    improvement_direction: dimension.improvement_direction || "补充真实行为案例，并准备可量化的项目证据。",
+  };
+}
+
+function legacyDimensionsFromRequirements(requirements: RoleCapabilityProfile["requirements"]): RoleDimension[] {
+  return capabilities.map((capability) => {
+    const requirement = requirements[capability.key];
+    return {
+      dimension_id: capability.key,
+      label: capability.label,
+      description: capability.description,
+      required_level: clampScore(requirement?.required_level ?? 55),
+      weight: Math.max(0, Math.min(1, Number(requirement?.weight ?? 0))),
+      mapped_capability_keys: [capability.key],
+      evaluation_method: "旧版 8 维岗位要求，按通用能力证据评价。",
+      questionnaire_focus: "使用通用行为锚定问卷题目。",
+      knowledge_basis: requirement?.requirement_summary || "旧版岗位能力要求。",
+      improvement_direction: "根据该通用能力补充行为证据和面试表达案例。",
+    };
+  });
 }
 
 export function profileAverageScore(profile: CapabilityProfile): number {

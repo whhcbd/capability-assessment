@@ -54,8 +54,10 @@ class AssessmentService:
 
         answers = [answer.model_dump() for answer in request.questionnaire_answers]
         role_requirements = {}
+        role_dimensions = []
         if isinstance(session.get("role_profile"), dict):
             role_requirements = session["role_profile"].get("requirements") or {}
+            role_dimensions = session["role_profile"].get("role_dimensions") or []
         result = build_capability_evidence(
             user_id=student_id,
             resume_text=session["resume_text"],
@@ -64,6 +66,7 @@ class AssessmentService:
             timeout=request.timeout,
             retries=request.retries,
             role_requirements=role_requirements if isinstance(role_requirements, dict) else {},
+            role_dimensions=role_dimensions if isinstance(role_dimensions, list) else [],
         )
         evidence = result["evidence"]
         capability_profile = merge_capability_profile(evidence)
@@ -94,6 +97,7 @@ class AssessmentService:
             top_k=request.top_k,
             timeout=request.timeout,
             retries=request.retries,
+            role_dimensions=request.role_dimensions,
         )
         return {
             "role_id": request.role_id,

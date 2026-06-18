@@ -17,8 +17,10 @@ import type {
   CapabilityProfile,
   CapabilityReportRow,
   FlowView,
+  ImprovementPlanSection,
   QuestionnaireMode,
   QuestionnaireAnswerPayload,
+  RoleDimension,
   RoleCapabilityProfile,
 } from "../types/profile";
 
@@ -85,6 +87,79 @@ function sourceLabel(source: string): string {
   return labels[source] ?? source;
 }
 
+function clampScore(value: unknown): number {
+  return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+}
+
+function clampConfidence(value: unknown): number {
+  return Math.max(0, Math.min(1, Number((Number(value) || 0).toFixed(2))));
+}
+
+function buildDimensionReportRow(dimension: RoleDimension, profile: CapabilityProfile): CapabilityReportRow {
+  const mappedKeys = dimension.mapped_capability_keys.length ? dimension.mapped_capability_keys : [capabilities[0].key];
+  const entries = mappedKeys.map((key) => profile[key]).filter(Boolean);
+  const score = clampScore(entries.reduce((sum, entry) => sum + Number(entry.score || 0), 0) / Math.max(entries.length, 1));
+  const confidence = clampConfidence(
+    entries.reduce((sum, entry) => sum + Number(entry.confidence || 0), 0) / Math.max(entries.length, 1),
+  );
+  const sources = [...new Set(entries.flatMap((entry) => entry.evidence_sources ?? []))];
+  const summaries = entries.map((entry) => entry.evidence_summary).filter(Boolean).slice(0, 2);
+  const advice = entries.map((entry) => entry.improvement_advice).filter(Boolean).slice(0, 2).join(" ");
+  const primaryCapability = capabilityByKey(mappedKeys[0]);
+  const required = clampScore(dimension.required_level);
+  const gap = Math.max(0, required - score);
+
+  return {
+    ...primaryCapability,
+    key: mappedKeys[0],
+    dimension_id: dimension.dimension_id,
+    label: dimension.label,
+    short: dimension.label.length > 8 ? dimension.label.slice(0, 8) : dimension.label,
+    description: dimension.description,
+    mapped_capability_keys: mappedKeys,
+    weight: Math.max(0, Math.min(1, Number(dimension.weight || 0))),
+    score,
+    confidence,
+    evidence_sources: sources,
+    evidence_summary: summaries.join(" ") || "当前输入中缺少该岗位维度的可解释证据。",
+    improvement_advice: advice || dimension.improvement_direction,
+    required,
+    gap,
+    surplus: Math.max(0, score - required),
+    requirement_summary: dimension.description,
+    evaluation_method: dimension.evaluation_method,
+    questionnaire_focus: dimension.questionnaire_focus,
+    knowledge_basis: dimension.knowledge_basis,
+    improvement_direction: dimension.improvement_direction,
+    priority_score: Math.round(gap * Math.max(0.05, Number(dimension.weight || 0)) * 100) / 100,
+    source_completeness: sources.length >= 2 ? "证据较完整" : sources.length === 1 ? "证据单一" : "缺少个人证据",
+  };
+}
+
+function buildImprovementPlan(rows: CapabilityReportRow[]): ImprovementPlanSection[] {
+  const focusRows = rows.filter((row) => row.gap > 0).slice(0, 3);
+  if (!focusRows.length) return [];
+  const focusLabels = focusRows.map((row) => row.label).join("、");
+  return [
+    {
+      title: "第 1 周 · 基础能力训练",
+      items: focusRows.map((row) => `围绕「${row.label}」整理 1 个真实经历，补齐背景、个人动作、结果和复盘。`),
+    },
+    {
+      title: "第 2 周 · 工具使用训练",
+      items: focusRows.map((row) => `按岗位要求练习相关工具或方法：${row.questionnaire_focus}`),
+    },
+    {
+      title: "第 3 周 · 知识阅读",
+      items: focusRows.map((row) => `阅读并摘录与「${row.label}」相关的岗位资料，重点核对：${row.knowledge_basis}`),
+    },
+    {
+      title: "第 4 周 · 实践项目训练",
+      items: [`选择一个小项目集中补强 ${focusLabels}，产出可展示材料，并准备 90 秒面试表达。`],
+    },
+  ];
+}
+
 export function useAssessmentFlow() {
   const state = reactive<AssessmentState>(createInitialState());
   let pendingAdvanceTimer: number | null = null;
@@ -120,39 +195,35 @@ export function useAssessmentFlow() {
 
   const capabilityProfile = computed(() => state.capabilityProfile ?? createEmptyCapabilityProfile());
 
-  const capabilityRows = computed<CapabilityReportRow[]>(() => {
-    const requirements = state.roleProfile?.requirements;
-    return capabilities
-      .map((capability) => {
-        const user = capabilityProfile.value[capability.key];
-        const role = requirements?.[capability.key];
-        const required = Math.max(0, Math.min(100, Math.round(Number(role?.required_level ?? 0))));
-        const score = Math.max(0, Math.min(100, Math.round(Number(user.score ?? 0))));
-        return {
-          ...capability,
-          score,
-          confidence: Math.max(0, Math.min(1, Number(user.confidence ?? 0))),
-          evidence_sources: user.evidence_sources ?? [],
-          evidence_summary: user.evidence_summary || "暂无证据摘要。",
-          improvement_advice: user.improvement_advice || "暂无 LLM 改进建议。请重新生成能力评估。",
-          required,
-          gap: Math.max(0, required - score),
-          surplus: Math.max(0, score - required),
-          requirement_summary: role?.requirement_summary ?? "暂无岗位要求摘要。",
-        };
-      })
-      .sort((a, b) => b.required - a.required);
-  });
+  const capabilityRows = computed<CapabilityReportRow[]>(() =>
+    (state.roleProfile?.role_dimensions ?? [])
+      .map((dimension) => buildDimensionReportRow(dimension, capabilityProfile.value))
+      .sort((a, b) => b.priority_score - a.priority_score || b.required - a.required),
+  );
 
   const topStrengths = computed(() =>
     [...capabilityRows.value].sort((a, b) => b.surplus - a.surplus || b.score - a.score).slice(0, 3),
   );
 
-  const topGaps = computed(() =>
-    [...capabilityRows.value].sort((a, b) => b.gap - a.gap || b.required - a.required).slice(0, 3),
+  const topGaps = computed(() => [...capabilityRows.value].sort((a, b) => b.priority_score - a.priority_score).slice(0, 3));
+
+  const overallScore = computed(() => {
+    if (!state.capabilityProfile || capabilityRows.value.length === 0) return profileAverageScore(capabilityProfile.value);
+    const totalWeight = capabilityRows.value.reduce((sum, item) => sum + (item.weight || 1), 0) || 1;
+    return clampScore(capabilityRows.value.reduce((sum, item) => sum + item.score * (item.weight || 1), 0) / totalWeight);
+  });
+
+  const radarAxes = computed(() =>
+    capabilityRows.value.map((row) => ({
+      key: row.dimension_id,
+      label: row.short || row.label,
+      mappedCapabilityKeys: row.mapped_capability_keys,
+      userScore: state.capabilityProfile ? row.score : undefined,
+      roleScore: row.required,
+    })),
   );
 
-  const overallScore = computed(() => profileAverageScore(capabilityProfile.value));
+  const improvementPlan = computed<ImprovementPlanSection[]>(() => buildImprovementPlan(topGaps.value));
 
   const debugJson = computed(() =>
     JSON.stringify(
@@ -163,6 +234,8 @@ export function useAssessmentFlow() {
         generated_at: new Date().toISOString(),
         capability_profile: state.capabilityProfile,
         role_capability_profile: state.roleProfile,
+        report_dimensions: capabilityRows.value,
+        improvement_plan: improvementPlan.value,
         api_meta: state.apiMeta,
       },
       null,
@@ -206,6 +279,7 @@ export function useAssessmentFlow() {
     return activeQuestionnaireItems.value.map((item) => ({
       id: item.id,
       capability_key: item.capabilityKey,
+      role_dimension_id: item.roleDimensionId,
       indicator: item.indicator,
       text: item.text,
       score: Number(state.questionnaire[item.id] ?? 0),
@@ -245,13 +319,26 @@ export function useAssessmentFlow() {
     }
   }
 
-  function continueFromIntake() {
+  async function continueFromIntake() {
     const error = validateIntake();
     if (error) {
       setError(error, "intake");
       return;
     }
-    setView("questionnairePrompt");
+    state.view = "analyzing";
+    state.error = "";
+    state.isAnalyzing = true;
+    try {
+      await generateRoleProfile();
+      state.view = "questionnairePrompt";
+    } catch (error) {
+      setError(
+        `无法生成岗位能力模型：${error instanceof Error ? error.message : "服务暂时不可用"}。请确认 Capability API 已启动，并已配置 DEEPSEEK_API_KEY。`,
+        "error",
+      );
+    } finally {
+      state.isAnalyzing = false;
+    }
   }
 
   async function beginQuestionnaire(mode: QuestionnaireMode = "detailed") {
@@ -262,6 +349,7 @@ export function useAssessmentFlow() {
         const generatedItems = await fetchRoleGeneratedQuestionnaire({
           targetRole: state.targetRole,
           targetJd: state.targetJd,
+          roleDimensions: state.roleProfile?.role_dimensions ?? [],
           questionCount: 15,
         });
         state.generatedQuestionnaireItems = generatedItems;
@@ -317,7 +405,9 @@ export function useAssessmentFlow() {
     state.error = "";
     state.isAnalyzing = true;
     try {
-      await generateRoleProfile();
+      if (!state.assessmentId || !state.roleProfile) {
+        await generateRoleProfile();
+      }
       state.view = "profile";
     } catch (error) {
       setError(
@@ -438,6 +528,8 @@ export function useAssessmentFlow() {
     topStrengths,
     topGaps,
     overallScore,
+    radarAxes,
+    improvementPlan,
     debugJson,
     sourceLabel,
     setView,

@@ -18,6 +18,7 @@ export interface CapabilityInfo {
 export interface QuestionnaireItem {
   id: string;
   capabilityKey: CapabilityKey;
+  roleDimensionId?: string;
   indicator: string;
   evidenceType: string;
   text: string;
@@ -27,6 +28,7 @@ export interface QuestionnaireItem {
 export interface QuestionnaireAnswerPayload {
   id: string;
   capability_key: CapabilityKey;
+  role_dimension_id?: string;
   indicator: string;
   text: string;
   score: number;
@@ -65,6 +67,19 @@ export interface RoleRequirement {
 
 export type RoleRequirements = Record<CapabilityKey, RoleRequirement>;
 
+export interface RoleDimension {
+  dimension_id: string;
+  label: string;
+  description: string;
+  required_level: number;
+  weight: number;
+  mapped_capability_keys: CapabilityKey[];
+  evaluation_method: string;
+  questionnaire_focus: string;
+  knowledge_basis: string;
+  improvement_direction: string;
+}
+
 export interface RoleCapabilityProfile {
   role_id: string;
   role_name: string;
@@ -72,6 +87,7 @@ export interface RoleCapabilityProfile {
   source_type: string;
   rag_status: string;
   source_refs: string[];
+  role_dimensions: RoleDimension[];
   requirements: RoleRequirements;
 }
 
@@ -123,6 +139,7 @@ export interface ResumeTextResponse {
 
 export interface RoleGeneratedQuestionnaireItem {
   id: string;
+  role_dimension_id?: string;
   capability_key: CapabilityKey;
   indicator: string;
   evidence_type: string;
@@ -164,6 +181,10 @@ export type QuestionnaireMode = "quick" | "detailed" | "role_generated";
 export type FlowView = "start" | "intake" | "questionnairePrompt" | "quiz" | "analyzing" | "profile" | "error";
 
 export interface CapabilityReportRow extends CapabilityInfo {
+  dimension_id: string;
+  description: string;
+  mapped_capability_keys: CapabilityKey[];
+  weight: number;
   score: number;
   confidence: number;
   evidence_sources: string[];
@@ -173,4 +194,23 @@ export interface CapabilityReportRow extends CapabilityInfo {
   gap: number;
   surplus: number;
   requirement_summary: string;
+  evaluation_method: string;
+  questionnaire_focus: string;
+  knowledge_basis: string;
+  improvement_direction: string;
+  priority_score: number;
+  source_completeness: string;
+}
+
+export interface ImprovementPlanSection {
+  title: string;
+  items: string[];
+}
+
+export interface RadarAxis {
+  key: string;
+  label: string;
+  mappedCapabilityKeys: CapabilityKey[];
+  userScore?: number;
+  roleScore?: number;
 }

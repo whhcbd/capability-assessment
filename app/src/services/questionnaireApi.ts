@@ -1,5 +1,6 @@
 import type {
   QuestionnaireItem,
+  RoleDimension,
   RoleGeneratedQuestionnaireResponse,
 } from "../types/profile";
 
@@ -20,6 +21,7 @@ function errorMessageFromResponse(payload: ErrorPayload, fallback: string): stri
 export async function fetchRoleGeneratedQuestionnaire(input: {
   targetRole: string;
   targetJd: string;
+  roleDimensions?: RoleDimension[];
   questionCount?: number;
 }): Promise<QuestionnaireItem[]> {
   const response = await fetch(`${capabilityApiBaseUrl}/questionnaires/role-generated`, {
@@ -31,6 +33,7 @@ export async function fetchRoleGeneratedQuestionnaire(input: {
       target_role: input.targetRole,
       target_jd: input.targetJd,
       role_id: "internet_product_intern",
+      role_dimensions: input.roleDimensions ?? [],
       question_count: input.questionCount ?? 15,
       top_k: 6,
       timeout: 120,
@@ -49,6 +52,7 @@ export async function fetchRoleGeneratedQuestionnaire(input: {
   return payload.questionnaire_items.map((item) => ({
     id: item.id,
     capabilityKey: item.capability_key,
+    roleDimensionId: item.role_dimension_id,
     indicator: item.indicator,
     evidenceType: item.evidence_type,
     text: item.text,

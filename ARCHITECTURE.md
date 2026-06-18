@@ -10,7 +10,7 @@
 | Capability API | `server/` | 独立 FastAPI 后端，统一简历解析、岗位雷达、AI 问卷生成、问卷评分和 SQLite 持久化 |
 | RAG / Ability scripts | `rag-spike/scripts/` | DeepSeek、Chroma、简历解析、能力评分、PDF/Markdown 索引和 AI 问卷生成底层逻辑 |
 | Private knowledge base | `rag-spike/private-data/` | 本地私有知识库目录，当前约定放置 `swebok-v4.pdf`，不提交 git |
-| Shared schema docs | `docs/capability-schema.md` | 8 个统一 `capability_key` 和画像 JSON 结构 |
+| Shared schema docs | `docs/capability-schema.md` | 8 个统一 `capability_key`、v2 岗位 6 维 `role_dimensions` 和画像 JSON 结构 |
 | Tests | `tests/` | 独立后端轻量测试，不触发真实 DeepSeek、HuggingFace 下载或大索引构建 |
 
 ## 边界
@@ -30,11 +30,11 @@
 用户打开 Vite app
 -> 上传或粘贴简历，选择预置岗位 JD 或填写自定义 JD
 -> 如上传文件，POST /resume-text
+-> POST /assessments/role-profile
+-> 后端创建 assessment session，保存 v2 role_profile 和 6 个 role_dimensions
 -> 进入是否填写问卷页面
 -> 选择稍后填写或选择 10 题、48 题、AI 岗位问卷 15 题
--> POST /assessments/role-profile
--> 后端创建 assessment session，保存 role_profile，状态 questionnaire_pending
--> 如选择 AI 岗位问卷，POST /questionnaires/role-generated 生成 15 题
+-> 如选择 AI 岗位问卷，POST /questionnaires/role-generated 基于 role_dimensions 生成 15 题
 -> 前端进入现有问卷页，使用统一 1-5 选项作答
 -> POST /assessments/capability-evidence
 -> 后端写回 questionnaire_answers、evidence、capability_profile
@@ -100,7 +100,9 @@ student_id
 status=questionnaire_pending
 target_role
 target_jd
-role_profile
+role_profile.profile_version=v2
+role_profile.role_dimensions[6]
+role_profile.requirements
 role_api_meta
 ```
 
@@ -113,6 +115,7 @@ role_api_meta
   "target_role": "互联网产品经理实习生",
   "target_jd": "...",
   "role_id": "internet_product_intern",
+  "role_dimensions": [],
   "question_count": 15,
   "top_k": 6,
   "timeout": 120,
@@ -128,7 +131,7 @@ source_refs
 questionnaire_api_meta
 ```
 
-每个 `questionnaire_items` 元素会映射到 8 个统一 `capability_key`，前端复用当前 1-5 分问卷选项和评分提交链路。
+前端会把当前 `role_profile.role_dimensions` 传入该接口。每个 `questionnaire_items` 元素会携带 `role_dimension_id` 和兼容用 `capability_key`，前端复用当前 1-5 分问卷选项和评分提交链路。
 
 ### `POST /assessments/capability-evidence`
 
@@ -199,7 +202,7 @@ target_role + target_jd
 -> build_bilingual_retrieval_query()
 -> retrieve_chunks()
 -> DeepSeek structured extraction
--> role_capability_profile
+-> role_capability_profile v2: role_dimensions[6] + compatibility requirements
 -> SQLite
 -> Vue ProfileView
 ```
@@ -212,8 +215,8 @@ target_role + target_jd
 -> rag-spike/scripts/generate_questionnaire.py
 -> build_bilingual_retrieval_query()
 -> retrieve_chunks()
--> DeepSeek structured questionnaire generation
--> 15 role-specific questionnaire_items
+-> DeepSeek structured questionnaire generation with role_dimensions
+-> 15 role-specific questionnaire_items with role_dimension_id
 -> Vue QuestionnaireView
 -> POST /assessments/capability-evidence
 ```
@@ -229,10 +232,10 @@ resume_text + questionnaire_answers
 -> server/profile_merge.py
 -> capability_profile
 -> SQLite
--> Vue ProfileView
+-> Vue ProfileView maps 8 capability evidence into role_dimensions
 ```
 
-个人雷达来自简历和问卷答案的能力证据评分，不是 RAG 检索结果。
+个人雷达来自简历和问卷答案的能力证据评分，不是 RAG 检索结果。v2 页面主展示岗位 6 维；8 维 `capability_key` 只作为跨模块兼容和映射底座。
 
 ## 存储
 

@@ -18,6 +18,7 @@ class RoleProfileRequest(BaseModel):
 class QuestionnaireAnswer(BaseModel):
     id: str
     capability_key: str
+    role_dimension_id: str = ""
     indicator: str = ""
     text: str = ""
     score: int = Field(ge=0, le=5)
@@ -35,6 +36,7 @@ class RoleGeneratedQuestionnaireRequest(BaseModel):
     target_role: str = Field(min_length=1)
     target_jd: str = ""
     role_id: str = "custom_target_role"
+    role_dimensions: list[dict[str, Any]] = []
     question_count: int = Field(default=15, ge=1, le=20)
     top_k: int = Field(default=6, ge=1, le=10)
     timeout: int = Field(default=120, ge=5, le=180)
@@ -43,6 +45,7 @@ class RoleGeneratedQuestionnaireRequest(BaseModel):
 
 class GeneratedQuestionnaireItem(BaseModel):
     id: str
+    role_dimension_id: str = ""
     capability_key: str
     indicator: str
     evidence_type: str

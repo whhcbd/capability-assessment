@@ -10,6 +10,7 @@
 - 能力评估数据按 `student_id` 持久化。第一版用 `X-Student-Id` header 表示学生身份，默认 `demo_user_001`。
 - 第一版使用同步接口调用 RAG / DeepSeek；后续如耗时不可接受，再升级为异步任务。
 - `rag-spike/scripts/` 保留为底层 RAG / Ability 算法来源和 legacy spike，不再作为主流程服务入口。
+- v2 扩展 `POST /assessments/role-profile`，返回岗位专属 6 维 `role_dimensions`，并保留旧 `requirements` 兼容字段。
 
 ## CA-01 Define Product Backend Contract
 
@@ -141,7 +142,9 @@ Blocked by: CA-07
 
 - [ ] 预置产品经理 JD 可生成理想岗位雷达。
 - [ ] 预置数据分析 JD 可生成理想岗位雷达。
+- [ ] 预置电商运营 JD 可生成岗位 6 维能力模型。
 - [ ] `其他` JD 可生成理想岗位雷达。
 - [ ] 稍后填写问卷路径可进入个人界面并显示未测试空状态。
 - [ ] 完成 48 题后回到个人界面并显示个人能力雷达。
+- [ ] AI 岗位问卷题目携带 `role_dimension_id`，并能提交到同一评估会话。
 - [ ] 缺少 key、RAG 失败、Ability 失败时均显示明确错误。

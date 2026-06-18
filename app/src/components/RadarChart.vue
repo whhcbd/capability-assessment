@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { capabilities } from "../data/capabilities";
-import type { CapabilityProfile, RoleRequirements } from "../types/profile";
+import type { CapabilityProfile, RadarAxis, RoleRequirements } from "../types/profile";
 
 type RadarDisplayMode = "user" | "role" | "both";
 
@@ -9,6 +9,7 @@ const props = defineProps<{
   title: string;
   profile?: CapabilityProfile | null;
   requirements?: RoleRequirements | null;
+  axes?: RadarAxis[];
   displayMode?: RadarDisplayMode;
 }>();
 
@@ -29,7 +30,7 @@ function labelLines(label: string): string[] {
 }
 
 function pointFor(index: number, valueRadius: number): [number, number] {
-  const angle = (Math.PI * 2 * index) / capabilities.length - Math.PI / 2;
+  const angle = (Math.PI * 2 * index) / radarAxes.value.length - Math.PI / 2;
   return [center + Math.cos(angle) * valueRadius, center + Math.sin(angle) * valueRadius];
 }
 
@@ -47,17 +48,27 @@ function scoreFor(value: number | undefined): number {
 }
 
 const activeDisplayMode = computed<RadarDisplayMode>(() => props.displayMode ?? "both");
+const radarAxes = computed<RadarAxis[]>(() => {
+  if (props.axes?.length) return props.axes;
+  return capabilities.map((capability) => ({
+    key: capability.key,
+    label: capability.label,
+    mappedCapabilityKeys: [capability.key],
+    userScore: props.profile?.[capability.key]?.score,
+    roleScore: props.requirements?.[capability.key]?.required_level,
+  }));
+});
 
 const gridPolygons = computed(() =>
-  steps.map((step) => capabilities.map((_, index) => pointFor(index, radius * step).join(",")).join(" ")),
+  steps.map((step) => radarAxes.value.map((_, index) => pointFor(index, radius * step).join(",")).join(" ")),
 );
 
 const axes = computed(() =>
-  capabilities.map((capability, index) => {
+  radarAxes.value.map((axis, index) => {
     const [labelX, labelY] = pointFor(index, labelRadius);
     const [axisX, axisY] = pointFor(index, radius);
-    const userValue = props.profile ? scoreFor(props.profile[capability.key]?.score) : null;
-    const roleValue = props.requirements ? scoreFor(props.requirements[capability.key]?.required_level) : null;
+    const userValue = typeof axis.userScore === "number" ? scoreFor(axis.userScore) : null;
+    const roleValue = typeof axis.roleScore === "number" ? scoreFor(axis.roleScore) : null;
     let scoreLabel = "";
 
     if (activeDisplayMode.value === "user" && userValue !== null) {
@@ -73,12 +84,12 @@ const axes = computed(() =>
     }
 
     return {
-      key: capability.key,
-      label: capability.label,
-      labelLines: labelLines(capability.label),
+      key: axis.key,
+      label: axis.label,
+      labelLines: labelLines(axis.label),
       scoreLabel,
       labelX,
-      labelY: labelY - (labelLines(capability.label).length > 1 ? 8 : 0),
+      labelY: labelY - (labelLines(axis.label).length > 1 ? 8 : 0),
       axisX,
       axisY,
     };
@@ -86,13 +97,13 @@ const axes = computed(() =>
 );
 
 const userPolygon = computed(() => {
-  if (!props.profile || activeDisplayMode.value === "role") return "";
-  return polygonFor(capabilities.map(({ key }) => props.profile?.[key]?.score ?? 0));
+  if (activeDisplayMode.value === "role") return "";
+  return polygonFor(radarAxes.value.map((axis) => axis.userScore ?? 0));
 });
 
 const rolePolygon = computed(() => {
-  if (!props.requirements || activeDisplayMode.value === "user") return "";
-  return polygonFor(capabilities.map(({ key }) => props.requirements?.[key]?.required_level ?? 0));
+  if (activeDisplayMode.value === "user") return "";
+  return polygonFor(radarAxes.value.map((axis) => axis.roleScore ?? 0));
 });
 </script>
 

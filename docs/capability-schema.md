@@ -6,7 +6,7 @@
 
 能力评估智能体负责生成用户能力图和岗位能力需求图。如果每个智能体各自定义能力名，职位推荐、简历助手和面试陪练将无法复用同一份能力模型。统一 schema 的目标是让四个智能体共享同一种能力语言。
 
-当前主入口 `agent/capability-assessment/app/` 仍使用本文档的 8 个 `capability_key`。用户侧画像由简历和 48 题 `self_assessment` 证据合并生成；岗位侧画像默认由本地 RAG API 生成 `rag_generated_role_profile`。legacy `demo/` 中的 `mock_rag_placeholder` 只作为历史兼容值保留。
+当前主入口 `app/` 保留本文档的 8 个 `capability_key` 作为跨模块兼容底座。v2 岗位侧画像主展示改为岗位专属 6 维 `role_dimensions`，每个岗位维度必须映射到一个或多个统一 `capability_key`。用户侧 LLM evidence 仍输出 8 维能力证据，前端报告再按岗位维度映射汇总。
 
 ## 2. Capability Keys
 
@@ -76,7 +76,7 @@
 
 ## 5. 岗位能力需求图
 
-岗位能力需求图由能力评估智能体负责生成。当前 `app/` 主流程通过本地 RAG API 生成 `rag_generated_role_profile`；legacy `demo` 的 `mock_rag_placeholder` 只用于历史演示和兼容旧输出。职位推荐智能体负责从互联网或其他渠道爬取职位机会，然后使用本 schema 中的岗位能力需求图完成推荐排序和解释。
+岗位能力需求图由能力评估智能体负责生成。v2 主展示字段是 `role_dimensions`，固定 6 个岗位专属维度；`requirements` 继续保留为兼容字段，由 `role_dimensions.mapped_capability_keys` 派生。
 
 示例：
 
@@ -84,10 +84,24 @@
 {
   "role_id": "internet_product_intern",
   "role_name": "互联网产品经理实习生",
-  "profile_version": "v1",
+  "profile_version": "v2",
   "source_type": "rag_generated_role_profile",
   "rag_status": "generated",
   "source_refs": ["product-manager-intern-jd.md#1", "internet-role-capability-guide.md#3"],
+  "role_dimensions": [
+    {
+      "dimension_id": "user_research_insight",
+      "label": "用户洞察与需求定义",
+      "description": "能从用户、场景、痛点和业务目标中定义真实问题。",
+      "required_level": 82,
+      "weight": 0.2,
+      "mapped_capability_keys": ["logical_analysis", "business_industry_understanding"],
+      "evaluation_method": "结合简历中的调研/分析案例、问卷自评和模型判断。",
+      "questionnaire_focus": "考察是否做过需求澄清、问题拆解、证据判断和优先级取舍。",
+      "knowledge_basis": "依据 JD、本地岗位指南和检索资料。",
+      "improvement_direction": "补充一个用户问题拆解案例，写清目标、证据、取舍和结果。"
+    }
+  ],
   "requirements": {
     "communication_expression": {
       "required_level": 75,
@@ -113,6 +127,14 @@
 | `source_type` | string | yes | 来源类型。当前真实 RAG 使用 `rag_generated_role_profile`；legacy mock 输出可保留 `mock_rag_placeholder`。 |
 | `rag_status` | string | yes | RAG 状态。当前真实 RAG 使用 `generated`；legacy mock 输出可保留 `placeholder`。 |
 | `source_refs` | string[] | yes | 当前真实 RAG 使用 `file.md#chunk_index` 或私有 PDF 知识库的 `file.pdf#page_页码#chunk_序号` 记录检索资料来源；legacy mock 输出可能是内置资料名。 |
+| `role_dimensions` | object[] | yes in v2 | 固定 6 个岗位专属能力维度，是报告和雷达的主展示结构。 |
+| `dimension_id` | string | yes | 岗位维度 ID，小写英文、数字和下划线。 |
+| `label` | string | yes | 岗位语言下的能力名称。 |
+| `mapped_capability_keys` | string[] | yes | 映射到第 2 节的 8 个统一 key，至少 1 个。 |
+| `evaluation_method` | string | yes | 第一版如何结合简历证据、问卷自评和模型判断评价。 |
+| `questionnaire_focus` | string | yes | 该维度的行为锚定自评题设计方向。 |
+| `knowledge_basis` | string | yes | 该维度依据的 JD、岗位指南、知识库或行业资料。 |
+| `improvement_direction` | string | yes | 该维度的近期提升方向。 |
 | `requirements` | object | yes | 以 capability key 为字段名的岗位能力要求。 |
 | `required_level` | number | yes | 该岗位所需能力水平，范围 `0-100`。 |
 | `weight` | number | yes | 该能力在岗位中的相对重要性，范围 `0.00-1.00`。 |

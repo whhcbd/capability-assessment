@@ -14,6 +14,8 @@
 - RAG / Ability / AI 问卷生成为同步接口。
 - AI 岗位问卷第一版基于本地私有 SWEBOK PDF + DeepSeek，生成 15 道 1-5 分自评题。
 - SWEBOK PDF 为英文资料，RAG 检索已改为中文原始岗位/JD + 英文 retrieval query 的双语混合检索。
+- v2 岗位能力模型改为岗位专属 6 维 `role_dimensions`，并保留到统一 8 维 `capability_key` 的映射。
+- 报告主展示岗位 6 维、关键差距 Top 3 和 4 周提升计划；人工评价第一版只预留说明，不做录入 UI。
 
 ## 已完成
 
@@ -43,6 +45,10 @@
 - [已完成] 前端统一到 `VITE_CAPABILITY_API_BASE_URL`，旧 API env 只作过渡 fallback。
 - [已完成] 新增后端轻量测试，不调用真实 DeepSeek。
 - [已完成] 新增 AI 问卷 schema 校验测试。
+- [已完成] 新增本地岗位定制能力模型 v2 implementation issues 文档。
+- [已完成] 新增电商运营实习生预置 JD。
+- [已完成] 新增可提交岗位指南 `rag-spike/data/role-capability-v2-guide.md`。
+- [已完成] 新增真实样例脱敏与实测流程文档。
 
 ## 未完成
 
@@ -50,6 +56,7 @@
 - [未完成] 尚未接入主项目 `backend/` 或 `frontend/`。
 - [未完成] 尚未做异步任务、任务进度轮询或队列。
 - [未完成] 尚未做大规模岗位样本稳定性验证。
+- [未完成] 岗位 6 维模型仍需用真实产品、数据、运营岗位样例持续调 prompt 和岗位指南。
 - [未完成] AI 岗位问卷第一版只做产品经理实习生示范，不承诺所有 JD 都稳定。
 - [未完成] SWEBOK PDF 知识库和 AI 岗位问卷尚未在服务器真实 DeepSeek 链路验收。
 - [未完成] RAG 内容尚未直接进入能力明细的岗位应用场景或建议生成。
@@ -66,6 +73,7 @@
 - [风险] 同步接口在真实网络较慢时会让前端等待较久，后续可能需要引入异步任务。
 - [风险] `rag-spike/index/chroma/` 是本地向量索引，提交策略需要团队确认；默认不应提交大索引。
 - [风险] 当前 RAG 明确用于职业雷达和 AI 问卷生成；个人雷达来自简历和问卷评分，不应在演示中描述为 RAG 生成。
+- [风险] 岗位专属维度由 AI 每次生成，同一 JD 多次输出可能有轻微差异；演示前应使用真实样例复测。
 
 ## 当前运行方式
 
@@ -79,6 +87,8 @@ python -m pip install -r requirements.txt
 export DEEPSEEK_API_KEY=your_deepseek_key
 python -m server.main --host 0.0.0.0 --port 8770
 ```
+
+Windows PowerShell 使用 `.venv\Scripts\Activate.ps1` 激活虚拟环境。Windows 上 `pysqlite3-binary` 会被依赖平台标记跳过，后端脚本使用标准库 `sqlite3`。
 
 前端：
 
@@ -112,8 +122,10 @@ npm run build
 1. 在服务器确认 `rag-spike/private-data/swebok-v4.pdf` 存在。
 2. 在服务器构建 Chroma 索引，并检查 `index-build-report.json` 中 `pdf_extractable_pages > 0`、`indexed_chunks > 0`。
 3. 用真实 `DEEPSEEK_API_KEY` 验收产品经理实习生 AI 岗位问卷 15 题。
-4. 检查生成题目是否贴合软件工程/产品岗位语境，是否能正常提交评分进入个人界面。
-5. 根据真实耗时判断是否需要异步任务。
-6. 扩展岗位 JD 样本到 5-10 个。
-7. 决定 RAG 内容是否进入能力明细的岗位应用场景。
-8. 明确 Interview Agent 结果回写 mapping。
+4. 用真实 `DEEPSEEK_API_KEY` 验收产品经理、数据分析、电商运营三个预置岗位的 v2 岗位 6 维模型。
+5. 检查 AI 岗位问卷题目是否携带 `role_dimension_id`，是否能正常提交评分进入个人界面。
+6. 按 `docs/real-sample-workflow.md` 收集脱敏真实简历/JD 样例并重跑主流程。
+7. 根据真实耗时判断是否需要异步任务。
+8. 扩展岗位 JD 样本到 5-10 个。
+9. 决定 RAG 内容是否进入能力明细的岗位应用场景。
+10. 明确 Interview Agent 结果回写 mapping。

@@ -17,6 +17,7 @@
 
 ```text
 简历与理想岗位
+-> 生成岗位专属 6 维能力模型
 -> 是否填写问卷（10 题快速 / 48 题详细 / AI 岗位问卷 15 题）
 -> 个人界面
 ```
@@ -54,11 +55,11 @@ data/capability-assessment.sqlite3
 ## Repository Layout
 
 - `app/`：当前 Vue app。
-- `app/src/composables/useAssessmentFlow.ts`：流程状态、校验、上传、岗位雷达生成、问卷生成/提交和个人界面派生数据。
-- `app/src/views/ProfileView.vue`：个人界面，包含合并雷达、问卷模式弹窗和能力明细。
+- `app/src/composables/useAssessmentFlow.ts`：流程状态、校验、上传、v2 岗位模型生成、问卷生成/提交和个人界面派生数据。
+- `app/src/views/ProfileView.vue`：个人界面，包含岗位 6 维合并雷达、关键差距、问卷模式弹窗、能力明细和 4 周提升计划。
 - `app/src/views/QuestionnairePromptView.vue`：问卷选择页，包含 10 题、48 题和 AI 岗位问卷 15 题入口。
-- `app/src/components/RadarChart.vue`：个人/职业雷达叠加展示。
-- `app/src/data/roleOptions.ts`：预置岗位 JD 选项。
+- `app/src/components/RadarChart.vue`：动态维度个人/职业雷达叠加展示，v2 主展示岗位 6 维。
+- `app/src/data/roleOptions.ts`：预置岗位 JD 选项，当前包含产品经理、数据分析、电商运营。
 - `app/src/services/`：Capability API client、AI 问卷 API client 和画像合并逻辑。
 - `server/`：正式独立 FastAPI 后端。
 - `server/main.py`：API app 和 route。
@@ -67,7 +68,9 @@ data/capability-assessment.sqlite3
 - `server/script_adapters.py`：复用 `rag-spike/scripts/` 底层算法。
 - `server/profile_merge.py`：后端能力画像合并。
 - `tests/`：独立后端测试。
-- `docs/capability-schema.md`：8 个能力 key 和 JSON schema。
+- `docs/capability-schema.md`：8 个统一能力 key、v2 岗位 6 维 `role_dimensions` 和 JSON schema。
+- `docs/real-sample-workflow.md`：真实样例脱敏结构和主流程实测要求。
+- `docs/capability-v2-implementation-issues.md`：v2 本地 implementation issue 拆分。
 - `rag-spike/scripts/`：RAG、DeepSeek、简历解析、能力评分和 AI 问卷生成脚本。
 - `rag-spike/private-data/`：本地私有知识库目录，不提交 git。
 
@@ -95,6 +98,8 @@ python rag-spike/scripts/build_index.py
 cd C:\code\capability-assessment
 python -m pip install -r requirements.txt
 ```
+
+Windows 开发环境建议使用 Python 3.11 虚拟环境。`pysqlite3-binary` 在 Windows 上会被 `requirements.txt` 平台标记跳过，脚本会回退到标准库 `sqlite3`。
 
 启动后端：
 
@@ -148,12 +153,14 @@ python -m compileall server tests rag-spike\scripts
 - `app/` 使用 Vue 3 + Vite + TypeScript，不引入 Vue Router、Pinia 或 Element Plus，除非先更新文档并说明原因。
 - `server/` 使用 Python 3.11 + FastAPI，优先保持标准库 + 当前 `requirements.txt` 依赖。
 - `capability_key` 必须来自 `docs/capability-schema.md` 的 8 个 key。
+- v2 岗位侧主展示使用固定 6 个 `role_dimensions`；每个岗位维度必须映射到一个或多个 8 维 `capability_key`。
 - `score` 必须限制在 `0-100`。
 - `confidence` 必须限制在 `0.00-1.00`。
 - RAG `source_refs` 对 Markdown 使用 `file.md#chunk_index`，对私有 PDF 知识库使用 `file.pdf#page_页码#chunk_序号`。
-- RAG 用于职业雷达和 AI 岗位问卷生成；个人雷达来自简历和问卷能力证据，不要描述为 RAG 生成。
+- RAG 用于岗位能力模型和 AI 岗位问卷生成；个人雷达来自简历和问卷能力证据，不要描述为 RAG 生成。
 - 检索英文 SWEBOK PDF 时，先生成英文 retrieval query，再与中文岗位/JD 原文混合检索；英文 query 生成失败时回退中文原文。
-- AI 岗位问卷第一版只作为“产品经理实习生”示范能力，不承诺所有 JD 都稳定高质量。
+- AI 岗位问卷第一版只作为产品经理、数据分析、电商运营等样板岗位示范能力，不承诺所有 JD 都稳定高质量。
+- 主流程演示应使用真实或高可信脱敏简历/JD，不要使用“姓名 XX / 岗位 XX / 公司 XX”占位数据。
 - 不要把 mock 输出描述为生产级真实 RAG。
 - 不要把 legacy `demo/` mock fallback 搬回当前主流程。
 
