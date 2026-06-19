@@ -78,15 +78,6 @@ function createInitialState(): AssessmentState {
   };
 }
 
-function sourceLabel(source: string): string {
-  const labels: Record<string, string> = {
-    resume_text: "简历证据",
-    self_assessment: "问卷自评",
-    questionnaire: "问卷自评",
-  };
-  return labels[source] ?? source;
-}
-
 function clampScore(value: unknown): number {
   return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
 }
@@ -136,26 +127,38 @@ function buildDimensionReportRow(dimension: RoleDimension, profile: CapabilityPr
   };
 }
 
-function buildImprovementPlan(rows: CapabilityReportRow[]): ImprovementPlanSection[] {
+function buildImprovementPlan(rows: CapabilityReportRow[], targetRole: string): ImprovementPlanSection[] {
   const focusRows = rows.filter((row) => row.gap > 0).slice(0, 3);
   if (!focusRows.length) return [];
   const focusLabels = focusRows.map((row) => row.label).join("、");
+  const primaryFocus = focusRows[0];
   return [
     {
-      title: "第 1 周 · 基础能力训练",
-      items: focusRows.map((row) => `围绕「${row.label}」整理 1 个真实经历，补齐背景、个人动作、结果和复盘。`),
+      title: "工具提升（第 1 周）",
+      items: [
+        `每日 1 小时练习岗位常用工具，围绕「${primaryFocus.label}」完成 1 套可展示产出。`,
+        `用原型、流程图、思维导图或数据表格复刻一个 ${targetRole} 典型工作场景，并记录关键取舍。`,
+      ],
     },
     {
-      title: "第 2 周 · 工具使用训练",
-      items: focusRows.map((row) => `按岗位要求练习相关工具或方法：${row.questionnaire_focus}`),
+      title: "基础能力提升（第 2 周）",
+      items: focusRows.map(
+        (row) => `针对「${row.label}」做 3 次专项训练：${row.questionnaire_focus} 每次训练后补 1 条可量化复盘。`,
+      ),
     },
     {
-      title: "第 3 周 · 知识阅读",
-      items: focusRows.map((row) => `阅读并摘录与「${row.label}」相关的岗位资料，重点核对：${row.knowledge_basis}`),
+      title: "行业基础知识（贯穿全程）",
+      items: [
+        `每日 30 分钟阅读 ${targetRole} 入门资料，按「概念、场景、指标、术语」整理笔记。`,
+        `重点补齐 ${focusLabels} 对应知识：${focusRows.map((row) => row.knowledge_basis).join("；")}`,
+      ],
     },
     {
-      title: "第 4 周 · 实践项目训练",
-      items: [`选择一个小项目集中补强 ${focusLabels}，产出可展示材料，并准备 90 秒面试表达。`],
+      title: "实践项目（第 3-4 周）",
+      items: [
+        `选择一个小项目集中补强 ${focusLabels}，输出完整过程材料，并沉淀为作品集案例。`,
+        `最后 3 天打磨简历项目描述和 90 秒面试表达，讲清背景、动作、结果指标和复盘。`,
+      ],
     },
   ];
 }
@@ -223,7 +226,7 @@ export function useAssessmentFlow() {
     })),
   );
 
-  const improvementPlan = computed<ImprovementPlanSection[]>(() => buildImprovementPlan(topGaps.value));
+  const improvementPlan = computed<ImprovementPlanSection[]>(() => buildImprovementPlan(topGaps.value, state.targetRole));
 
   const debugJson = computed(() =>
     JSON.stringify(
@@ -531,7 +534,6 @@ export function useAssessmentFlow() {
     radarAxes,
     improvementPlan,
     debugJson,
-    sourceLabel,
     setView,
     selectRoleOption,
     continueFromIntake,

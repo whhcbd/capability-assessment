@@ -22,7 +22,6 @@ defineProps<{
   rows: CapabilityReportRow[];
   improvementPlan: ImprovementPlanSection[];
   debugJson: string;
-  sourceLabel: (source: string) => string;
 }>();
 
 type RadarMode = "both" | "user" | "role";
@@ -50,13 +49,8 @@ function gapLabel(item: CapabilityReportRow): string {
   return "保持优势";
 }
 
-function roleApplication(item: CapabilityReportRow, targetRole: string): string {
-  return `在 ${targetRole} 中，「${item.label}」主要指：${item.description} 评估方式：${item.evaluation_method}`;
-}
-
-function personalAssessment(item: CapabilityReportRow, sourceLabel: (source: string) => string): string {
-  const sources = item.evidence_sources.length ? item.evidence_sources.map(sourceLabel).join("、") : "现有材料";
-  return `当前 ${item.score} 分，岗位要求 ${item.required} 分，判定为“${levelLabel(item.score)}”。${item.source_completeness}，依据来自${sources}：${item.evidence_summary}`;
+function personalAssessment(item: CapabilityReportRow): string {
+  return `${item.source_completeness}：${item.evidence_summary}`;
 }
 
 function improvementAdvice(item: CapabilityReportRow): string {
@@ -171,30 +165,6 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
     </div>
 
     <template v-if="capabilityProfile">
-      <section class="summary-grid">
-        <article class="report-card">
-          <h2>关键差距</h2>
-          <div v-for="item in rows.slice(0, 3)" :key="`gap-${item.dimension_id}`" class="insight-row">
-            <strong>{{ item.label }}</strong>
-            <span>
-              {{ gapLabel(item) }} · 差距 {{ item.gap }} 分 · 权重 {{ Math.round(item.weight * 100) }}% · 优先值
-              {{ item.priority_score }}
-            </span>
-          </div>
-        </article>
-        <article class="report-card">
-          <h2>评价来源</h2>
-          <div class="insight-row">
-            <strong>综合分口径</strong>
-            <span>模型/证据评价 60 + 问卷自评 25 + 人工评价 15；当前未含人工评价，已按已有来源重标化。</span>
-          </div>
-          <div class="insight-row">
-            <strong>证据型评价</strong>
-            <span>基于简历中的项目成果、量化数据和结构化问卷答题，不等同于考试客观分。</span>
-          </div>
-        </article>
-      </section>
-
       <section class="report-card report-list capability-detail-board">
         <h2>能力明细</h2>
         <div class="capability-detail-table">
@@ -211,9 +181,20 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
               <small>{{ gapLabel(item) }} · 映射 {{ item.mapped_capability_keys.length }} 个通用能力</small>
               <span>可信度 {{ Math.round(item.confidence * 100) }}%</span>
             </div>
-            <p>{{ roleApplication(item, targetRole) }}</p>
-            <p>{{ personalAssessment(item, sourceLabel) }}</p>
-            <p>{{ improvementAdvice(item) }}</p>
+            <p class="detail-copy">
+              <strong>在 {{ targetRole }} 中，「{{ item.label }}」是重点岗位能力。</strong>
+              <span>{{ item.description }} 评估方式：{{ item.evaluation_method }}</span>
+            </p>
+            <p class="detail-copy">
+              <strong>
+                当前 {{ item.score }} 分，岗位要求 {{ item.required }} 分，判定为“{{ levelLabel(item.score) }}”。
+              </strong>
+              <span>{{ personalAssessment(item) }}</span>
+            </p>
+            <p class="detail-copy">
+              <strong>优先动作：</strong>
+              <span>{{ improvementAdvice(item) }}</span>
+            </p>
           </div>
         </div>
       </section>

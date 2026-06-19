@@ -1117,6 +1117,23 @@ textarea:read-only {
   line-height: 1.7;
 }
 
+.capability-detail-row .detail-copy {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.detail-copy strong {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.detail-copy span {
+  color: var(--body);
+  line-height: 1.7;
+}
+
 .plan-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1133,6 +1150,7 @@ textarea:read-only {
 .plan-section h3 {
   margin-bottom: 10px;
   font-size: 15px;
+  line-height: 1.45;
 }
 
 .plan-section ul {

@@ -24,7 +24,6 @@ const {
   capabilityRows,
   improvementPlan,
   debugJson,
-  sourceLabel,
   setView,
   handleResumeUpload,
   selectRoleOption,
@@ -107,7 +106,6 @@ const {
       :rows="capabilityRows"
       :improvement-plan="improvementPlan"
       :debug-json="debugJson"
-      :source-label="sourceLabel"
       @start-quiz="beginQuestionnaire"
       @restart="restart"
     />
