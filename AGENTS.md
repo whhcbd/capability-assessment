@@ -9,6 +9,8 @@
 - `DEVELOPMENT_ISSUES.md`：当前完成/未完成事项、风险、下一步和已知测试缺口。
 - `docs/capability-schema.md`：8 个统一 `capability_key`、v2 岗位 6 维 `role_dimensions`、JSON schema 和报告文案约束。
 - `docs/product-backend-issues.md`：正式 FastAPI 后端 issue 拆分和验收状态。
+- `docs/meeting-6-15-core-issues.md`：6.15 会议核心问题拆分、agent 可交付范围和 HITL 状态。
+- `docs/evaluation-framework.md`：主客观结合能力评价框架、缺失处理和 Interview Agent 映射边界。
 - `docs/real-sample-workflow.md`：真实或高可信脱敏样例结构和主流程实测要求。
 - `DESIGN.md`：前端界面设计指导文件。除非用户明确要求修改设计规范，否则不要改动该文件。
 
@@ -64,6 +66,8 @@ python -m compileall server tests rag-spike\scripts
 - 修改 `app/` 后至少运行 `npm run build`。
 - 修改 `server/` 后至少运行后端测试和 `python -m compileall server tests`。
 - 修改 `rag-spike/scripts/` 后至少运行 `python -m compileall rag-spike\scripts`。
+- Agent 不负责真实测试和验收。真实简历/JD 样例收集、真实 DeepSeek key 链路、私有 PDF / Chroma 索引、服务器环境、产品效果和报告质量验收必须由人工执行并判断。
+- Agent 可执行的验证范围仅限不依赖真实密钥、私有数据、模型下载或人工主观判断的轻量检查，例如前端构建、后端单元测试和 Python 编译检查；无法执行时说明原因。
 - 不要在本地执行 `pip install`、`npm install`、模型下载或其他依赖下载命令；缺依赖时直接说明验证无法运行。
 - 不要触发 embedding 模型下载。`build_index.py` 默认离线加载 `BAAI/bge-m3`；服务器首次构建如需下载，必须由人工确认并显式使用 `--allow-download`。
 - 不要提交真实 `DEEPSEEK_API_KEY`、`rag-spike/.env`、SQLite 数据库、私有 PDF、模型缓存、Chroma 大索引或无关临时文件。

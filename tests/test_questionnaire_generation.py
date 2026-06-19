@@ -23,6 +23,16 @@ def generated_items(count: int = 15) -> list[dict]:
         "data_digital_literacy",
         "business_industry_understanding",
     ]
+    return [
+        {
+            "capability_key": keys[index % len(keys)],
+            "indicator": "岗位化行为",
+            "evidence_type": "AI 岗位问卷",
+            "text": f"面对软件工程岗位场景 {index + 1} 时，我能说明目标、约束、行动和结果。",
+            "reverse": False,
+        }
+        for index in range(count)
+    ]
 
 
 def role_dimensions() -> list[dict]:
@@ -52,16 +62,6 @@ def generated_role_dimension_items(count: int = 15) -> list[dict]:
     for index, item in enumerate(items):
         item["role_dimension_id"] = dimensions[index % len(dimensions)]["dimension_id"]
     return items
-    return [
-        {
-            "capability_key": keys[index % len(keys)],
-            "indicator": "岗位化行为",
-            "evidence_type": "AI 岗位问卷",
-            "text": f"面对软件工程岗位场景 {index + 1} 时，我能说明目标、约束、行动和结果。",
-            "reverse": False,
-        }
-        for index in range(count)
-    ]
 
 
 def test_generated_questionnaire_validation_accepts_15_items() -> None:

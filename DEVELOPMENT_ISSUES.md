@@ -50,6 +50,10 @@
 - [已完成] 新增电商运营实习生预置 JD。
 - [已完成] 新增可提交岗位指南 `rag-spike/data/role-capability-v2-guide.md`。
 - [已完成] 新增真实样例脱敏与实测流程文档。
+- [已完成] 新增 6.15 会议核心问题 issue 文档、真实样例记录模板、岗位模型调优记录、DeepSeek/SWEBOK 人工验收清单。
+- [已完成] 新增主客观结合能力评价框架文档，明确自评、简历证据、模型评价、人工评价和 Interview Agent 映射边界。
+- [已完成] 报告页新增关键差距 Top 3 展示，按岗位差距和权重提示优先处理维度。
+- [已完成] 修复 `tests/test_questionnaire_generation.py` 中 `generated_items()` helper 缺少返回值的问题。
 
 ## 未完成
 
@@ -59,7 +63,6 @@
 - [未完成] 尚未做大规模岗位样本稳定性验证。
 - [未完成] 岗位 6 维模型仍需用真实产品、数据、运营岗位样例持续调 prompt 和岗位指南。
 - [未完成] AI 岗位问卷第一版只作为产品经理、数据分析、电商运营等样板岗位示范能力，不承诺所有 JD 都稳定。
-- [未完成] `tests/test_questionnaire_generation.py` 中 `generated_items()` helper 缺少返回值，AI 问卷 schema 测试需修复后才能作为通过状态口径。
 - [未完成] SWEBOK PDF 知识库和 AI 岗位问卷尚未在服务器真实 DeepSeek 链路验收。
 - [未完成] RAG 内容尚未直接进入能力明细的岗位应用场景或建议生成。
 - [未完成] Interview Agent 的 `competencyId` 到 8 个 `capability_key` 的 mapping 尚未定义。

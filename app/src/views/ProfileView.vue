@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import RadarChart from "../components/RadarChart.vue";
 import type {
   CapabilityProfile,
@@ -10,7 +10,7 @@ import type {
   RoleCapabilityProfile,
 } from "../types/profile";
 
-defineProps<{
+const props = defineProps<{
   targetRole: string;
   targetJd: string;
   overallScore: number;
@@ -34,6 +34,8 @@ const radarModes: Array<{ value: RadarMode; label: string }> = [
   { value: "user", label: "个人" },
   { value: "role", label: "职业" },
 ];
+
+const topGapRows = computed(() => props.rows.filter((item) => item.gap > 0).slice(0, 3));
 
 function gapLabel(item: CapabilityReportRow): string {
   if (item.priority_score >= 4 || item.gap >= 20) return "高优先级";
@@ -171,6 +173,34 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
     </div>
 
     <template v-if="capabilityProfile">
+      <section v-if="topGapRows.length" class="report-card report-list gap-priority-board">
+        <div class="section-headline">
+          <div>
+            <h2>关键差距 Top 3</h2>
+            <p class="radar-note">按岗位要求差距和岗位权重排序，优先处理这些能力维度。</p>
+          </div>
+        </div>
+        <div class="gap-priority-grid">
+          <article v-for="item in topGapRows" :key="item.dimension_id" class="gap-priority-item">
+            <div class="gap-priority-score">
+              <strong>{{ item.gap }}</strong>
+              <span>分差</span>
+            </div>
+            <div class="gap-priority-copy">
+              <div class="gap-priority-title">
+                <strong>{{ item.label }}</strong>
+                <span>{{ gapLabel(item) }}</span>
+              </div>
+              <p>
+                当前 {{ item.score }} / 岗位 {{ item.required }} · 权重 {{ Math.round(item.weight * 100) }}% ·
+                优先级 {{ item.priority_score }}
+              </p>
+              <p v-html="renderAiText(item.ai_improvement_advice || improvementAdvice(item))" />
+            </div>
+          </article>
+        </div>
+      </section>
+
       <section class="report-card report-list capability-detail-board">
         <h2>能力明细</h2>
         <div class="capability-detail-table">
