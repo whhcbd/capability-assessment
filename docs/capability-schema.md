@@ -123,7 +123,7 @@
 | --- | --- | --- | --- |
 | `role_id` | string | yes | 岗位或职业方向 ID。 |
 | `role_name` | string | yes | 岗位或职业方向名称。 |
-| `profile_version` | string | yes | 岗位能力需求图版本，首版为 `v1`。 |
+| `profile_version` | string | yes | 岗位能力需求图版本；当前 `app/` 主流程使用 `v2`。 |
 | `source_type` | string | yes | 来源类型。当前真实 RAG 使用 `rag_generated_role_profile`；legacy mock 输出可保留 `mock_rag_placeholder`。 |
 | `rag_status` | string | yes | RAG 状态。当前真实 RAG 使用 `generated`；legacy mock 输出可保留 `placeholder`。 |
 | `source_refs` | string[] | yes | 当前真实 RAG 使用 `file.md#chunk_index` 或私有 PDF 知识库的 `file.pdf#page_页码#chunk_序号` 记录检索资料来源；legacy mock 输出可能是内置资料名。 |

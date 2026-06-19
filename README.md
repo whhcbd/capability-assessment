@@ -62,7 +62,7 @@ tests/      独立后端轻量测试
 - Node.js 20 LTS 或更新的 LTS 版本。
 - 可访问 DeepSeek API 的网络环境。
 - `DEEPSEEK_API_KEY`。不要把真实 key 写入前端 `.env` 或提交到仓库。
-- 如需首次构建索引，需要能下载或已经缓存 embedding 模型 `BAAI/bge-m3`。
+- 索引脚本默认离线加载 embedding 模型 `BAAI/bge-m3`；首次构建需要提前准备模型缓存，或在服务器环境显式使用 `--allow-download`。
 
 AI 岗位问卷示范使用本地私有 SWEBOK PDF 知识库。不要把 PDF 提交到仓库；服务器上请放到：
 
@@ -70,10 +70,16 @@ AI 岗位问卷示范使用本地私有 SWEBOK PDF 知识库。不要把 PDF 提
 rag-spike/private-data/swebok-v4.pdf
 ```
 
-放好 PDF 后构建本地 Chroma 索引：
+放好 PDF 后构建本地 Chroma 索引。默认命令只使用本地模型缓存：
 
 ```bash
 python rag-spike/scripts/build_index.py
+```
+
+如服务器首次构建且确认允许下载模型，可显式执行：
+
+```bash
+python rag-spike/scripts/build_index.py --allow-download
 ```
 
 构建报告会写入：
@@ -82,7 +88,7 @@ python rag-spike/scripts/build_index.py
 rag-spike/outputs/index-build-report.json
 ```
 
-验收时需要检查 `pdf_extractable_pages > 0`、`indexed_chunks > 0`。
+验收时需要检查 `document_count > 0`、`pdf_extractable_pages > 0`；如果本次依赖 SWEBOK PDF，还需要检查 `pdf_chunks > 0`。
 
 ## 后端安装与启动
 
@@ -283,6 +289,7 @@ python -m compileall server tests rag-spike/scripts
 ## 相关文档
 
 - `ARCHITECTURE.md`：当前架构与数据流。
+- `DESIGN.md`：前端界面设计指导文件。
 - `DEVELOPMENT_ISSUES.md`：当前状态、风险和下一步。
 - `docs/capability-schema.md`：8 个统一能力维度和 JSON schema。
 - `docs/product-backend-issues.md`：正式后端 issue 拆分。

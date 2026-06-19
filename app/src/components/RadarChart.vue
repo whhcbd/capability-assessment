@@ -13,10 +13,10 @@ const props = defineProps<{
   displayMode?: RadarDisplayMode;
 }>();
 
-const size = 460;
+const size = 560;
 const center = size / 2;
-const radius = 140;
-const labelRadius = 180;
+const radius = 150;
+const labelRadius = 225;
 const steps = [0.25, 0.5, 0.75, 1];
 
 function labelLines(label: string): string[] {
@@ -25,8 +25,16 @@ function labelLines(label: string): string[] {
     自我认知与职业动机: ["自我认知与", "职业动机"],
     数据与数字化思维: ["数据与", "数字化思维"],
     商业与行业理解: ["商业与", "行业理解"],
+    用户调研与需求洞察: ["用户调研与", "需求洞察"],
+    跨团队协作与沟通: ["跨团队协作", "与沟通"],
+    竞品研究与行业理解: ["竞品研究与", "行业理解"],
   };
-  return preferredBreaks[label] ?? [label];
+  if (preferredBreaks[label]) return preferredBreaks[label];
+  if (label.length > 8) {
+    const splitAt = Math.ceil(label.length / 2);
+    return [label.slice(0, splitAt), label.slice(splitAt)];
+  }
+  return [label];
 }
 
 function pointFor(index: number, valueRadius: number): [number, number] {

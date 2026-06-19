@@ -191,6 +191,8 @@ rag-spike/outputs/index-build-report.json
 
 报告包含 Markdown chunk 数、PDF 文件数、PDF 总页数、可抽文本页数、空页数和 PDF chunk 数。
 
+`build_index.py` 默认设置 `HF_HUB_OFFLINE=1`，只加载本地缓存中的 embedding 模型；首次构建如需联网下载模型，必须显式传入 `--allow-download`。
+
 检索英文 SWEBOK PDF 时，后端会先用 DeepSeek 把中文岗位/JD 压缩为英文 retrieval query，再把中文原文和英文 query 拼接后做 embedding 检索。英文 query 生成失败时回退到中文原文检索，不中断主流程。
 
 ## 数据流
@@ -269,6 +271,7 @@ capability_profile_json
 ability_api_meta_json
 questionnaire_answers_json
 status
+error_message
 created_at
 updated_at
 completed_at

@@ -45,7 +45,7 @@
 - [已完成] 岗位雷达和 AI 岗位问卷检索支持双语混合 query，改善中文 JD 检索英文 SWEBOK 的召回质量。
 - [已完成] 前端统一到 `VITE_CAPABILITY_API_BASE_URL`，旧 API env 只作过渡 fallback。
 - [已完成] 新增后端轻量测试，不调用真实 DeepSeek。
-- [已完成] 新增 AI 问卷 schema 校验测试。
+- [已完成] 新增 AI 问卷 schema 校验测试文件。
 - [已完成] 新增本地岗位定制能力模型 v2 implementation issues 文档。
 - [已完成] 新增电商运营实习生预置 JD。
 - [已完成] 新增可提交岗位指南 `rag-spike/data/role-capability-v2-guide.md`。
@@ -58,7 +58,8 @@
 - [未完成] 尚未做异步任务、任务进度轮询或队列。
 - [未完成] 尚未做大规模岗位样本稳定性验证。
 - [未完成] 岗位 6 维模型仍需用真实产品、数据、运营岗位样例持续调 prompt 和岗位指南。
-- [未完成] AI 岗位问卷第一版只做产品经理实习生示范，不承诺所有 JD 都稳定。
+- [未完成] AI 岗位问卷第一版只作为产品经理、数据分析、电商运营等样板岗位示范能力，不承诺所有 JD 都稳定。
+- [未完成] `tests/test_questionnaire_generation.py` 中 `generated_items()` helper 缺少返回值，AI 问卷 schema 测试需修复后才能作为通过状态口径。
 - [未完成] SWEBOK PDF 知识库和 AI 岗位问卷尚未在服务器真实 DeepSeek 链路验收。
 - [未完成] RAG 内容尚未直接进入能力明细的岗位应用场景或建议生成。
 - [未完成] Interview Agent 的 `competencyId` 到 8 个 `capability_key` 的 mapping 尚未定义。
@@ -67,6 +68,7 @@
 ## 已知风险
 
 - [风险] `BAAI/bge-m3` 首次加载较慢，真实演示前需要预热或接受等待。
+- [风险] `build_index.py` 默认离线加载 `BAAI/bge-m3`；如果模型缓存不存在，需在服务器人工准备缓存或显式使用 `--allow-download`。
 - [风险] SWEBOK PDF 是本地私有知识库文件，不应提交到 git；服务器需要手动放置到 `rag-spike/private-data/swebok-v4.pdf`。
 - [风险] PDF 如果不是可复制文字版，`pypdf` 可能抽取不到正文，需要换文本版或增加 OCR 管线。
 - [风险] DeepSeek API 失败、网络失败、余额不足或 key 配置错误时，当前流程会中断并显示错误，不会生成 mock 报告。
@@ -108,6 +110,12 @@ mkdir -p rag-spike/private-data
 python rag-spike/scripts/build_index.py
 ```
 
+如服务器首次构建且确认允许下载 embedding 模型，可显式执行：
+
+```bash
+python rag-spike/scripts/build_index.py --allow-download
+```
+
 轻量验证：
 
 ```bash
@@ -121,7 +129,7 @@ npm run build
 ## 下一步
 
 1. 在服务器确认 `rag-spike/private-data/swebok-v4.pdf` 存在。
-2. 在服务器构建 Chroma 索引，并检查 `index-build-report.json` 中 `pdf_extractable_pages > 0`、`indexed_chunks > 0`。
+2. 在服务器构建 Chroma 索引，并检查 `index-build-report.json` 中 `document_count > 0`、`pdf_extractable_pages > 0`；如依赖 SWEBOK PDF，还需检查 `pdf_chunks > 0`。
 3. 用真实 `DEEPSEEK_API_KEY` 验收产品经理实习生 AI 岗位问卷 15 题。
 4. 用真实 `DEEPSEEK_API_KEY` 验收产品经理、数据分析、电商运营三个预置岗位的 v2 岗位 6 维模型。
 5. 检查 AI 岗位问卷题目是否携带 `role_dimension_id`，是否能正常提交评分进入个人界面。

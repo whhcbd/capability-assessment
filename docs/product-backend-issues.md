@@ -112,7 +112,11 @@ Blocked by: CA-02, CA-03, CA-04
 - [x] SQLite repository 测试覆盖创建、完成、latest 查询。
 - [x] 能力画像合并测试覆盖 8 个 capability key。
 - [x] 后续 API 测试可 mock RAG / Ability service，不触发模型下载或真实网络。
-- [x] 测试命令可在项目工作区内运行，不依赖用户临时目录权限。
+- [ ] 当前测试套件需先修复 `tests/test_questionnaire_generation.py` 的 `generated_items()` helper，之后再确认完整测试命令可在项目工作区内通过。
+
+### Current note
+
+当前仓库已有测试文件，但 `tests/test_questionnaire_generation.py` 的 `generated_items()` helper 缺少返回值，AI 问卷 schema 测试需修复后才能作为通过状态口径。
 
 ## CA-07 Documentation And Runbook
 
