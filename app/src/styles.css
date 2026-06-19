@@ -1117,21 +1117,17 @@ textarea:read-only {
   line-height: 1.7;
 }
 
-.capability-detail-row .detail-copy {
+.capability-detail-row .ai-copy {
   display: grid;
   align-content: start;
   gap: 8px;
 }
 
-.detail-copy strong {
+.ai-copy strong,
+.plan-section strong {
   color: var(--text);
   font-weight: 600;
   line-height: 1.6;
-}
-
-.detail-copy span {
-  color: var(--body);
-  line-height: 1.7;
 }
 
 .plan-grid {

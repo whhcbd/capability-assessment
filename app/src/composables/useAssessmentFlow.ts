@@ -13,6 +13,7 @@ import {
 } from "../services/profileMerge";
 import type {
   ApiMeta,
+  AiReportContent,
   CapabilityEvidenceGroup,
   CapabilityProfile,
   CapabilityReportRow,
@@ -45,6 +46,7 @@ interface AssessmentState {
   generatedQuestionnaireItems: typeof questionnaireItems;
   capabilityProfile: CapabilityProfile | null;
   roleProfile: RoleCapabilityProfile | null;
+  reportContent: AiReportContent | null;
   evidence: CapabilityEvidenceGroup[];
   apiMeta: ApiMeta;
 }
@@ -73,6 +75,7 @@ function createInitialState(): AssessmentState {
     generatedQuestionnaireItems: [],
     capabilityProfile: null,
     roleProfile: null,
+    reportContent: null,
     evidence: [],
     apiMeta: {},
   };
@@ -86,9 +89,25 @@ function clampConfidence(value: unknown): number {
   return Math.max(0, Math.min(1, Number((Number(value) || 0).toFixed(2))));
 }
 
-function buildDimensionReportRow(dimension: RoleDimension, profile: CapabilityProfile): CapabilityReportRow {
+function normalizeReportContent(value: unknown): AiReportContent | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as AiReportContent;
+  return {
+    capability_details: Array.isArray(raw.capability_details) ? raw.capability_details : [],
+    improvement_plan: Array.isArray(raw.improvement_plan) ? raw.improvement_plan : [],
+  };
+}
+
+function buildDimensionReportRow(
+  dimension: RoleDimension,
+  profile: CapabilityProfile,
+  reportContent: AiReportContent | null,
+): CapabilityReportRow {
   const mappedKeys = dimension.mapped_capability_keys.length ? dimension.mapped_capability_keys : [capabilities[0].key];
   const entries = mappedKeys.map((key) => profile[key]).filter(Boolean);
+  const reportDetail = (reportContent?.capability_details ?? []).find(
+    (item) => item.role_dimension_id === dimension.dimension_id,
+  );
   const score = clampScore(entries.reduce((sum, entry) => sum + Number(entry.score || 0), 0) / Math.max(entries.length, 1));
   const confidence = clampConfidence(
     entries.reduce((sum, entry) => sum + Number(entry.confidence || 0), 0) / Math.max(entries.length, 1),
@@ -124,43 +143,10 @@ function buildDimensionReportRow(dimension: RoleDimension, profile: CapabilityPr
     improvement_direction: dimension.improvement_direction,
     priority_score: Math.round(gap * Math.max(0.05, Number(dimension.weight || 0)) * 100) / 100,
     source_completeness: sources.length >= 2 ? "证据较完整" : sources.length === 1 ? "证据单一" : "缺少个人证据",
+    ai_role_application: reportDetail?.role_application,
+    ai_personal_assessment: reportDetail?.personal_assessment,
+    ai_improvement_advice: reportDetail?.improvement_advice,
   };
-}
-
-function buildImprovementPlan(rows: CapabilityReportRow[], targetRole: string): ImprovementPlanSection[] {
-  const focusRows = rows.filter((row) => row.gap > 0).slice(0, 3);
-  if (!focusRows.length) return [];
-  const focusLabels = focusRows.map((row) => row.label).join("、");
-  const primaryFocus = focusRows[0];
-  return [
-    {
-      title: "工具提升（第 1 周）",
-      items: [
-        `每日 1 小时练习岗位常用工具，围绕「${primaryFocus.label}」完成 1 套可展示产出。`,
-        `用原型、流程图、思维导图或数据表格复刻一个 ${targetRole} 典型工作场景，并记录关键取舍。`,
-      ],
-    },
-    {
-      title: "基础能力提升（第 2 周）",
-      items: focusRows.map(
-        (row) => `针对「${row.label}」做 3 次专项训练：${row.questionnaire_focus} 每次训练后补 1 条可量化复盘。`,
-      ),
-    },
-    {
-      title: "行业基础知识（贯穿全程）",
-      items: [
-        `每日 30 分钟阅读 ${targetRole} 入门资料，按「概念、场景、指标、术语」整理笔记。`,
-        `重点补齐 ${focusLabels} 对应知识：${focusRows.map((row) => row.knowledge_basis).join("；")}`,
-      ],
-    },
-    {
-      title: "实践项目（第 3-4 周）",
-      items: [
-        `选择一个小项目集中补强 ${focusLabels}，输出完整过程材料，并沉淀为作品集案例。`,
-        `最后 3 天打磨简历项目描述和 90 秒面试表达，讲清背景、动作、结果指标和复盘。`,
-      ],
-    },
-  ];
 }
 
 export function useAssessmentFlow() {
@@ -200,7 +186,7 @@ export function useAssessmentFlow() {
 
   const capabilityRows = computed<CapabilityReportRow[]>(() =>
     (state.roleProfile?.role_dimensions ?? [])
-      .map((dimension) => buildDimensionReportRow(dimension, capabilityProfile.value))
+      .map((dimension) => buildDimensionReportRow(dimension, capabilityProfile.value, state.reportContent))
       .sort((a, b) => b.priority_score - a.priority_score || b.required - a.required),
   );
 
@@ -226,7 +212,7 @@ export function useAssessmentFlow() {
     })),
   );
 
-  const improvementPlan = computed<ImprovementPlanSection[]>(() => buildImprovementPlan(topGaps.value, state.targetRole));
+  const improvementPlan = computed<ImprovementPlanSection[]>(() => state.reportContent?.improvement_plan ?? []);
 
   const debugJson = computed(() =>
     JSON.stringify(
@@ -238,6 +224,7 @@ export function useAssessmentFlow() {
         capability_profile: state.capabilityProfile,
         role_capability_profile: state.roleProfile,
         report_dimensions: capabilityRows.value,
+        report_content: state.reportContent,
         improvement_plan: improvementPlan.value,
         api_meta: state.apiMeta,
       },
@@ -493,12 +480,14 @@ export function useAssessmentFlow() {
       state.assessmentId = capabilityResult.assessment_id ?? state.assessmentId;
       state.evidence = capabilityResult.evidence;
       state.capabilityProfile = mergeCapabilityProfile(capabilityResult.evidence);
+      state.reportContent = normalizeReportContent(capabilityResult.ability_api_meta?.report_content);
       state.apiMeta = {
         ...state.apiMeta,
         ability: {
           model: capabilityResult.deepseek_model ?? capabilityResult.ability_api_meta?.deepseek_model,
           elapsed_seconds: capabilityResult.elapsed_seconds ?? capabilityResult.ability_api_meta?.elapsed_seconds,
           status: capabilityResult.llm_status ?? capabilityResult.ability_api_meta?.llm_status,
+          report_content: state.reportContent ?? undefined,
         },
       };
       state.view = "profile";

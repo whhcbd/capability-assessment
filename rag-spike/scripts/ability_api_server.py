@@ -190,7 +190,7 @@ def build_capability_prompt(
         输出可合并进 capability_profile 的局部能力证据 JSON，并为每个能力给出可马上执行的改进建议。
 
         只允许输出 JSON，不要输出 Markdown，不要解释。
-        不允许输出岗位推荐列表、录用判断、医学诊断、心理测评结论、长期训练计划或简历正文改写。
+        不允许输出岗位推荐列表、录用判断、医学诊断、心理测评结论或简历正文改写；除 report_content.improvement_plan 外不要输出额外训练计划。
         如果证据不足，可以给较低 confidence；不要把证据不足直接写成能力差。
         自评问卷只能作为低可信度辅助证据，不能单独决定最终能力水平。
         简历文本和自评分数必须分开解释。
@@ -210,6 +210,7 @@ def build_capability_prompt(
 
         输出要求：
         - 顶层必须包含 evidence 数组。
+        - 顶层必须包含 report_content 对象，用于前端直接展示报告文案。
         - evidence 数组对象的 source_type 只能是 resume_text 或 self_assessment。
         - 每个 evidence 对象必须包含 source_type、source_id、capability_evidence。
         - capability_evidence 中每项必须包含 capability_key、score、confidence、evidence_summary、improvement_advice。
@@ -222,6 +223,14 @@ def build_capability_prompt(
         - resume_text 证据要基于简历里的项目、行为、结果、数据或职责。
         - self_assessment 证据要明确写成“自评倾向”，confidence 通常不高于 0.45。
         - 当自评高分但简历缺少对应行为证据时，要提示“需要补充行为证据”。
+        - report_content.capability_details 必须围绕岗位专属能力维度生成；如提供 role_dimensions，必须尽量一一对应 role_dimension_id。
+        - report_content.capability_details 每项必须包含 role_dimension_id、role_application、personal_assessment、improvement_advice。
+        - role_application、personal_assessment、improvement_advice 必须是完整中文自然段，不能使用前端模板式开头。
+        - report_content.improvement_plan 必须是 4 个模块，围绕 4 周执行计划生成；模块可参考工具提升、基础能力、行业知识、实践项目，但具体内容必须结合 target_role、简历证据、问卷答案和岗位差距生成。
+        - report_content.improvement_plan 每项必须包含 title 和 items；items 每条必须是可执行动作。
+        - report_content 中所有展示文案可以使用 Markdown 粗体标记 **重点内容**，由你根据内容判断重点。
+        - 粗体只标真正关键的对象、差距、动作或交付物；不要把固定句式、整段文字或标签机械加粗。
+        - 不要输出 HTML，不要输出 Markdown 标题，只允许在字符串内部使用 **...** 表示加粗。
 
         目标 JSON 形状：
         {{
@@ -252,7 +261,35 @@ def build_capability_prompt(
                 }}
               ]
             }}
-          ]
+          ],
+          "report_content": {{
+            "capability_details": [
+              {{
+                "role_dimension_id": "requirement_analysis",
+                "role_application": "该岗位最看重能否把模糊需求转成**清晰的用户场景和优先级**，并让设计、研发能据此推进。",
+                "personal_assessment": "目前证据显示你有技术实现经历，但缺少**用户需求拆解和优先级判断**案例，因此这一项更像是待补强能力。",
+                "improvement_advice": "本周选择一个熟悉功能，补一页**用户痛点、约束、优先级和验收标准**，形成可放入作品集的需求拆解页。"
+              }}
+            ],
+            "improvement_plan": [
+              {{
+                "title": "工具提升（第 1 周）",
+                "items": ["每天 1 小时完成一个和目标岗位相关的工具产出，重点沉淀**可展示作品**。"]
+              }},
+              {{
+                "title": "基础能力提升（第 2 周）",
+                "items": ["围绕最弱能力做 3 次拆解训练，每次写出**问题、判断依据和复盘结论**。"]
+              }},
+              {{
+                "title": "行业基础知识（贯穿全程）",
+                "items": ["每天 30 分钟阅读岗位相关资料，整理**术语、指标和典型业务场景**。"]
+              }},
+              {{
+                "title": "实践项目（第 3-4 周）",
+                "items": ["完成一个小项目并输出**原型、分析文档或作品集案例**，最后准备 90 秒讲解。"]
+              }}
+            ]
+          }}
         }}
 
         简历文本：
@@ -264,7 +301,7 @@ def build_capability_prompt(
     ).strip()
 
 
-def validate_capability_evidence(payload: dict[str, Any]) -> list[str]:
+def validate_capability_evidence(payload: dict[str, Any], *, require_report_content: bool = False) -> list[str]:
     errors: list[str] = []
     evidence = payload.get("evidence")
     if not isinstance(evidence, list) or not evidence:
@@ -307,6 +344,42 @@ def validate_capability_evidence(payload: dict[str, Any]) -> list[str]:
                 errors.append(f"Missing evidence_summary for {key}")
             if not isinstance(advice, str) or not advice.strip():
                 errors.append(f"Missing improvement_advice for {key}")
+
+    report_content = payload.get("report_content")
+    if require_report_content or report_content is not None:
+        if not isinstance(report_content, dict):
+            errors.append("report_content must be an object")
+            return errors
+
+        details = report_content.get("capability_details")
+        if not isinstance(details, list) or not details:
+            errors.append("report_content.capability_details must be a non-empty array")
+        else:
+            for index, item in enumerate(details):
+                if not isinstance(item, dict):
+                    errors.append(f"report_content.capability_details[{index}] must be an object")
+                    continue
+                for field in ("role_dimension_id", "role_application", "personal_assessment", "improvement_advice"):
+                    value = item.get(field)
+                    if not isinstance(value, str) or not value.strip():
+                        errors.append(f"Missing {field} at report_content.capability_details[{index}]")
+
+        plan = report_content.get("improvement_plan")
+        if not isinstance(plan, list) or len(plan) != 4:
+            errors.append("report_content.improvement_plan must contain exactly 4 sections")
+        else:
+            for index, section in enumerate(plan):
+                if not isinstance(section, dict):
+                    errors.append(f"report_content.improvement_plan[{index}] must be an object")
+                    continue
+                title = section.get("title")
+                items = section.get("items")
+                if not isinstance(title, str) or not title.strip():
+                    errors.append(f"Missing title at report_content.improvement_plan[{index}]")
+                if not isinstance(items, list) or not items:
+                    errors.append(f"Missing items at report_content.improvement_plan[{index}]")
+                elif not all(isinstance(item, str) and item.strip() for item in items):
+                    errors.append(f"Invalid items at report_content.improvement_plan[{index}]")
     return errors
 
 
@@ -338,7 +411,7 @@ def score_capability_for_request(
         try:
             content = extract_role_profile.call_deepseek(config, prompt, timeout)
             parsed = extract_role_profile.extract_json_response(content)
-            validation_errors = validate_capability_evidence(parsed)
+            validation_errors = validate_capability_evidence(parsed, require_report_content=True)
             if validation_errors:
                 raise RuntimeError("; ".join(validation_errors))
             break
@@ -353,8 +426,9 @@ def score_capability_for_request(
 
     return {
         "evidence": parsed["evidence"],
+        "report_content": parsed.get("report_content") or {},
         "deepseek_model": config["model"],
-        "validation_errors": validate_capability_evidence(parsed),
+        "validation_errors": validate_capability_evidence(parsed, require_report_content=True),
         "elapsed_seconds": round(time.perf_counter() - started_at, 3),
         "llm_status": "llm_generated_capability_evidence",
     }

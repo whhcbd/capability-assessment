@@ -169,7 +169,40 @@
 - `improvement_advice` 必须由 LLM 根据目标岗位、当前能力、简历证据和问卷结果生成，建议要具体到可马上执行的动作。
 - 不允许在该输出中生成岗位推荐、匹配报告或训练建议。
 
-## 7. 自评解释边界
+## 7. 报告展示文案
+
+正式后端 `POST /assessments/capability-evidence` 的 LLM 输出除 `evidence` 外，还应包含 `report_content`。该字段用于个人界面的能力明细和 4 周提升计划，前端只负责渲染，不再套固定文案模板。
+
+```json
+{
+  "report_content": {
+    "capability_details": [
+      {
+        "role_dimension_id": "user_research_insight",
+        "role_application": "该岗位最看重能否把模糊需求转成**清晰的用户场景和优先级**。",
+        "personal_assessment": "简历中技术实现证据较多，但缺少**用户需求拆解案例**。",
+        "improvement_advice": "本周补一页**用户痛点、约束、优先级和验收标准**。"
+      }
+    ],
+    "improvement_plan": [
+      {
+        "title": "工具提升（第 1 周）",
+        "items": ["每天 1 小时完成一个工具产出，沉淀**可展示作品**。"]
+      }
+    ]
+  }
+}
+```
+
+约束：
+
+- `capability_details` 应尽量与 v2 `role_dimensions` 一一对应，使用 `role_dimension_id` 关联。
+- `role_application`、`personal_assessment`、`improvement_advice` 必须由 LLM 根据岗位、简历、问卷和岗位维度生成。
+- `improvement_plan` 必须是 4 个模块，围绕 4 周可执行计划组织。
+- 展示文案可使用 `**重点内容**` 标记加粗；加粗由 LLM 根据内容选择，不能机械加粗固定模板句式。
+- 前端不得直接渲染 HTML，只允许把安全转义后的 `**...**` 转为粗体。
+
+## 8. 自评解释边界
 
 自评问卷产生的 `self_assessment` evidence 只能表示用户当前的自评倾向。最终报告必须结合简历文本、固定问答或其他行为证据解释：
 

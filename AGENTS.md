@@ -92,12 +92,7 @@ python rag-spike/scripts/build_index.py
 
 ## Commands
 
-安装 Python 依赖：
-
-```powershell
-cd C:\code\capability-assessment
-python -m pip install -r requirements.txt
-```
+依赖安装由服务器环境统一处理。Agent 不要在本地执行 `pip install`、`npm install`、模型下载或其他依赖下载命令；如果验证时缺少依赖，直接说明该验证无法在当前环境运行。
 
 Windows 开发环境建议使用 Python 3.11 虚拟环境。`pysqlite3-binary` 在 Windows 上会被 `requirements.txt` 平台标记跳过，脚本会回退到标准库 `sqlite3`。
 
@@ -112,7 +107,6 @@ python -m server.main --host 0.0.0.0 --port 8770
 
 ```powershell
 cd C:\code\capability-assessment\app
-npm install
 npm run dev
 ```
 
@@ -147,6 +141,7 @@ python -m compileall server tests rag-spike\scripts
 - 本地 SQLite 数据库不应提交。
 - `rag-spike/private-data/`、PDF、模型缓存和 Chroma 大索引不应提交。
 - 不要在未确认的情况下触发模型下载。
+- 不要在本地下载或安装依赖；依赖由服务器统一准备。
 
 ## Coding Conventions
 

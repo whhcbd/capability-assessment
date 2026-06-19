@@ -70,13 +70,14 @@ Blocked by: CA-03
 
 ### What to build
 
-用户完成 48 题问卷后，前端带 `assessment_id` 提交；后端生成 `evidence` 和 `capability_profile`，写回同一条评估会话。
+用户完成 48 题问卷后，前端带 `assessment_id` 提交；后端生成 `evidence`、`capability_profile` 和 LLM `report_content`，写回同一条评估会话。
 
 ### Acceptance criteria
 
 - [x] `POST /assessments/capability-evidence` 要求 `assessment_id`。
 - [x] 问卷结果保存为 `questionnaire_answers`。
 - [x] 保存 `evidence`、`capability_profile`、`ability_api_meta`。
+- [x] `ability_api_meta.report_content` 保存能力明细展示文案和 4 周提升计划，前端只渲染 LLM 返回的 `**重点**`。
 - [x] 状态更新为 `completed`。
 - [x] 评估会话不存在或不属于当前学生时返回错误。
 

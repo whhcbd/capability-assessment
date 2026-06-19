@@ -37,7 +37,7 @@
 -> 如选择 AI 岗位问卷，POST /questionnaires/role-generated 基于 role_dimensions 生成 15 题
 -> 前端进入现有问卷页，使用统一 1-5 选项作答
 -> POST /assessments/capability-evidence
--> 后端写回 questionnaire_answers、evidence、capability_profile
+-> 后端写回 questionnaire_answers、evidence、capability_profile 和 LLM report_content
 -> 状态 completed
 -> 前端进入个人界面，展示合并雷达和能力明细
 ```
@@ -154,6 +154,8 @@ ability_api_meta
 questionnaire_answers
 ```
 
+`ability_api_meta.report_content` 包含前端个人界面直接展示的能力明细文案和 4 周提升计划；文案由 LLM 生成，可在字符串中使用 `**重点**` 标记加粗。
+
 如果 `assessment_id` 不存在或不属于当前 `X-Student-Id`，返回 404。
 
 ## 知识库与索引
@@ -231,6 +233,7 @@ resume_text + questionnaire_answers
 -> evidence[]
 -> server/profile_merge.py
 -> capability_profile
+-> LLM report_content
 -> SQLite
 -> Vue ProfileView maps 8 capability evidence into role_dimensions
 ```

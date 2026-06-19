@@ -35,13 +35,6 @@ const radarModes: Array<{ value: RadarMode; label: string }> = [
   { value: "role", label: "职业" },
 ];
 
-function levelLabel(score: number): string {
-  if (score >= 85) return "优势明显";
-  if (score >= 70) return "基础稳定";
-  if (score >= 55) return "需要补强";
-  return "证据偏弱";
-}
-
 function gapLabel(item: CapabilityReportRow): string {
   if (item.priority_score >= 4 || item.gap >= 20) return "高优先级";
   if (item.priority_score >= 2 || item.gap >= 10) return "中优先级";
@@ -55,6 +48,19 @@ function personalAssessment(item: CapabilityReportRow): string {
 
 function improvementAdvice(item: CapabilityReportRow): string {
   return item.improvement_advice || "暂无 LLM 改进建议。请重新生成能力评估。";
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderAiText(text: string): string {
+  return escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 }
 
 const emit = defineEmits<{
@@ -181,20 +187,9 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
               <small>{{ gapLabel(item) }} · 映射 {{ item.mapped_capability_keys.length }} 个通用能力</small>
               <span>可信度 {{ Math.round(item.confidence * 100) }}%</span>
             </div>
-            <p class="detail-copy">
-              <strong>在 {{ targetRole }} 中，「{{ item.label }}」是重点岗位能力。</strong>
-              <span>{{ item.description }} 评估方式：{{ item.evaluation_method }}</span>
-            </p>
-            <p class="detail-copy">
-              <strong>
-                当前 {{ item.score }} 分，岗位要求 {{ item.required }} 分，判定为“{{ levelLabel(item.score) }}”。
-              </strong>
-              <span>{{ personalAssessment(item) }}</span>
-            </p>
-            <p class="detail-copy">
-              <strong>优先动作：</strong>
-              <span>{{ improvementAdvice(item) }}</span>
-            </p>
+            <p class="ai-copy" v-html="renderAiText(item.ai_role_application || item.description)" />
+            <p class="ai-copy" v-html="renderAiText(item.ai_personal_assessment || personalAssessment(item))" />
+            <p class="ai-copy" v-html="renderAiText(item.ai_improvement_advice || improvementAdvice(item))" />
           </div>
         </div>
       </section>
@@ -203,13 +198,13 @@ function chooseQuestionnaireMode(mode: QuestionnaireMode) {
         <h2>4 周提升计划</h2>
         <div v-if="improvementPlan.length" class="plan-grid">
           <article v-for="section in improvementPlan" :key="section.title" class="plan-section">
-            <h3>{{ section.title }}</h3>
+            <h3 v-html="renderAiText(section.title)" />
             <ul>
-              <li v-for="item in section.items" :key="item">{{ item }}</li>
+              <li v-for="item in section.items" :key="item" v-html="renderAiText(item)" />
             </ul>
           </article>
         </div>
-        <p v-else class="radar-note">当前没有明显岗位差距，建议保持现有优势并继续补充真实项目证据。</p>
+        <p v-else class="radar-note">AI 暂未返回可展示的 4 周提升计划，请重新提交问卷生成报告。</p>
       </section>
 
       <details class="developer-details">

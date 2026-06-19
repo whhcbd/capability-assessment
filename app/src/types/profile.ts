@@ -102,6 +102,7 @@ export interface AbilityEvidenceResponse {
     validation_errors?: string[];
     elapsed_seconds?: number;
     llm_status?: string;
+    report_content?: AiReportContent;
   };
   deepseek_model?: string;
   validation_errors?: string[];
@@ -168,6 +169,7 @@ export interface ApiMeta {
     model?: string;
     elapsed_seconds?: number;
     status?: string;
+    report_content?: AiReportContent;
   };
   role?: {
     model?: string;
@@ -200,11 +202,26 @@ export interface CapabilityReportRow extends CapabilityInfo {
   improvement_direction: string;
   priority_score: number;
   source_completeness: string;
+  ai_role_application?: string;
+  ai_personal_assessment?: string;
+  ai_improvement_advice?: string;
 }
 
 export interface ImprovementPlanSection {
   title: string;
   items: string[];
+}
+
+export interface AiCapabilityDetail {
+  role_dimension_id: string;
+  role_application: string;
+  personal_assessment: string;
+  improvement_advice: string;
+}
+
+export interface AiReportContent {
+  capability_details?: AiCapabilityDetail[];
+  improvement_plan?: ImprovementPlanSection[];
 }
 
 export interface RadarAxis {

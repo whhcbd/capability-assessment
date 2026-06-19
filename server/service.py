@@ -75,6 +75,7 @@ class AssessmentService:
             "validation_errors": result.get("validation_errors") or [],
             "elapsed_seconds": result.get("elapsed_seconds"),
             "llm_status": result.get("llm_status"),
+            "report_content": result.get("report_content") or {},
         }
         return self.repository.complete_assessment(
             assessment_id=request.assessment_id,
